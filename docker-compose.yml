@@ -1,0 +1,33 @@
+services:
+  grafana-dashboard-exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ~/.ssh/id_rsa:/app/.ssh/id_rsa:ro
+      - ~/.ssh/known_hosts:/app/.ssh/known_hosts:ro
+    networks:
+      - grafana-network
+    depends_on:
+      - grafana
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - grafana-network
+
+volumes:
+  grafana-storage:
+
+networks:
+  grafana-network:
+    driver: bridge
