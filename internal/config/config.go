@@ -10,6 +10,7 @@ type Config struct {
 	SSHURL        string
 	SSHKey        string
 	SSHUser       string
+	SSHEmail      string
 	BaseBranch    string
 	SavePath      string
 	BranchPrefix  string
@@ -22,6 +23,7 @@ func Load() (*Config, error) {
 		SSHURL:        os.Getenv("SSH_URL"),
 		SSHKey:        os.Getenv("SSH_KEY"),
 		SSHUser:       os.Getenv("SSH_USER"),
+		SSHEmail:      os.Getenv("SSH_EMAIL"),
 		BaseBranch:    os.Getenv("BASE_BRANCH"),
 		SavePath:      os.Getenv("SAVE_PATH"),
 		BranchPrefix:  os.Getenv("BRANCH_PREFIX"),
@@ -29,7 +31,7 @@ func Load() (*Config, error) {
 		GrafanaAPIKey: os.Getenv("GRAFANA_API_KEY"),
 	}
 
-	if cfg.SSHURL == "" || cfg.SSHKey == "" || cfg.SSHUser == "" || cfg.BaseBranch == "" || cfg.SavePath == "" || cfg.GrafanaURL == "" || cfg.GrafanaAPIKey == "" {
+	if cfg.SSHURL == "" || cfg.SSHKey == "" || cfg.SSHUser == "" || cfg.SSHEmail == "" || cfg.BaseBranch == "" || cfg.SavePath == "" || cfg.GrafanaURL == "" || cfg.GrafanaAPIKey == "" {
 		return nil, fmt.Errorf("missing required environment variables")
 	}
 

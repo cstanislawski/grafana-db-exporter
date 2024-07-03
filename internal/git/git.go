@@ -7,6 +7,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
@@ -57,13 +58,17 @@ func (gc *GitClient) CheckoutNewBranch(baseBranch, branchPrefix string) (string,
 	return newBranch, nil
 }
 
-func (gc *GitClient) CommitAndPush(branchName string) error {
+func (gc *GitClient) CommitAndPush(branchName, sshUsername, sshEmail string) error {
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
 	}
 
-	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{All: true})
+	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{All: true, Author: &object.Signature{
+		Name:  sshUsername,
+		Email: sshEmail,
+		When:  time.Now(),
+	}})
 	if err != nil {
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}

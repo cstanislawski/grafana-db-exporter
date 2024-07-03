@@ -61,7 +61,7 @@ func (e *Exporter) Run() error {
 		return fmt.Errorf("failed to save dashboards: %w", err)
 	}
 
-	if err := e.git.CommitAndPush(branchName); err != nil {
+	if err := e.git.CommitAndPush(branchName, e.cfg.SSHUser, e.cfg.SSHUser); err != nil {
 		return fmt.Errorf("failed to commit and push changes: %w", err)
 	}
 
