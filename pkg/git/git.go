@@ -11,15 +11,15 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
-type GitClient struct {
+type Client struct {
 	repo *git.Repository
 	auth *ssh.PublicKeys
 }
 
-func NewClient(sshURL, sshKey string) (*GitClient, error) {
+func NewClient(sshURL, sshKey string) (*Client, error) {
 	auth, err := ssh.NewPublicKeysFromFile("git", sshKey, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SSH auth: %w", err)
+		return nil, fmt.Errorf("failed to create SSH public keys: %w", err)
 	}
 
 	repo, err := git.PlainClone("./repo", false, &git.CloneOptions{
@@ -30,10 +30,10 @@ func NewClient(sshURL, sshKey string) (*GitClient, error) {
 		return nil, fmt.Errorf("failed to clone repository: %w", err)
 	}
 
-	return &GitClient{repo: repo, auth: auth}, nil
+	return &Client{repo: repo, auth: auth}, nil
 }
 
-func (gc *GitClient) CheckoutNewBranch(baseBranch, branchPrefix string) (string, error) {
+func (gc *Client) CheckoutNewBranch(baseBranch, branchPrefix string) (string, error) {
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return "", fmt.Errorf("failed to get worktree: %w", err)
@@ -58,10 +58,15 @@ func (gc *GitClient) CheckoutNewBranch(baseBranch, branchPrefix string) (string,
 	return newBranch, nil
 }
 
-func (gc *GitClient) CommitAndPush(branchName, sshUsername, sshEmail string) error {
+func (gc *Client) CommitAndPush(branchName, sshUsername, sshEmail string) error {
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	_, err = w.Add(".")
+	if err != nil {
+		return fmt.Errorf("failed to add files: %w", err)
 	}
 
 	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{All: true, Author: &object.Signature{

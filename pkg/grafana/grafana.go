@@ -7,19 +7,19 @@ import (
 	"github.com/grafana-tools/sdk"
 )
 
-type GrafanaClient struct {
+type Client struct {
 	client *sdk.Client
 }
 
-func NewClient(url, apiKey string) (*GrafanaClient, error) {
+func NewClient(url, apiKey string) (*Client, error) {
 	client, err := sdk.NewClient(url, apiKey, sdk.DefaultHTTPClient) // Use apiKey here
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Grafana client: %w", err)
 	}
-	return &GrafanaClient{client: client}, nil
+	return &Client{client: client}, nil
 }
 
-func (gc *GrafanaClient) ListAndExportDashboards(ctx context.Context) ([]sdk.Board, error) {
+func (gc *Client) ListAndExportDashboards(ctx context.Context) ([]sdk.Board, error) {
 	boardLinks, err := gc.client.SearchDashboards(ctx, "", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search dashboards: %w", err)
@@ -27,16 +27,11 @@ func (gc *GrafanaClient) ListAndExportDashboards(ctx context.Context) ([]sdk.Boa
 
 	var boards []sdk.Board
 	for _, link := range boardLinks {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			board, _, err := gc.client.GetDashboardByUID(ctx, link.UID)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get dashboard %s: %w", link.UID, err)
-			}
-			boards = append(boards, board)
+		board, _, err := gc.client.GetDashboardByUID(ctx, link.UID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get dashboard by UID: %w", err)
 		}
+		boards = append(boards, board)
 	}
 
 	return boards, nil

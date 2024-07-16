@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"grafana-db-exporter/pkg/config"
 	"grafana-db-exporter/pkg/exporter"
@@ -23,4 +24,6 @@ func main() {
 	}
 
 	logger.Info().Msg("Successfully exported and pushed Grafana dashboards")
+	// Go to sleep for 1h
+	time.Sleep(time.Hour)
 }

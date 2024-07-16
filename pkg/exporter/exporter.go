@@ -17,10 +17,10 @@ import (
 )
 
 type Exporter struct {
-	cfg    *config.Config
-	git    *git.GitClient
-	grf    *grafana.GrafanaClient
-	logger zerolog.Logger
+	cfg     *config.Config
+	git     *git.Client
+	grafana *grafana.Client
+	logger  zerolog.Logger
 }
 
 func New(cfg *config.Config, logger zerolog.Logger) *Exporter {
@@ -38,12 +38,14 @@ func (e *Exporter) Run() error {
 		return fmt.Errorf("failed to create Git client: %w", err)
 	}
 
-	e.grf, err = grafana.NewClient(e.cfg.GrafanaURL, e.cfg.GrafanaAPIKey) // Pass API key here
+	e.grafana, err = grafana.NewClient(e.cfg.GrafanaURL, e.cfg.GrafanaAPIKey) // Pass API key here
 	if err != nil {
 		return fmt.Errorf("failed to create Grafana client: %w", err)
 	}
 
 	branchName, err := e.git.CheckoutNewBranch(e.cfg.BaseBranch, e.cfg.BranchPrefix)
+	_ = branchName
+
 	if err != nil {
 		return fmt.Errorf("failed to checkout new branch: %w", err)
 	}
@@ -51,7 +53,7 @@ func (e *Exporter) Run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	dashboards, err := e.grf.ListAndExportDashboards(ctx)
+	dashboards, err := e.grafana.ListAndExportDashboards(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list and export dashboards: %w", err)
 	}
@@ -68,18 +70,18 @@ func (e *Exporter) Run() error {
 }
 
 func (e *Exporter) saveDashboards(dashboards []sdk.Board) error {
-	for _, dashboard := range dashboards {
-		filename := filepath.Join(e.cfg.SavePath, fmt.Sprintf("%s.json", dashboard.UID))
-		if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create directory: %w", err)
-		}
+	filename := filepath.Join("./repo/" + e.cfg.SavePath)
+	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
 
-		data, err := json.MarshalIndent(dashboard, "", "  ")
+	for _, dashboard := range dashboards {
+		dashboardJson, err := json.MarshalIndent(dashboard, "", "  ")
 		if err != nil {
 			return fmt.Errorf("failed to marshal dashboard: %w", err)
 		}
 
-		if err := os.WriteFile(filename, data, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(filename, fmt.Sprintf("%s.json", dashboard.UID)), dashboardJson, 0644); err != nil {
 			return fmt.Errorf("failed to write dashboard file: %w", err)
 		}
 
