@@ -1,4 +1,4 @@
-module github.com/cstanislawski/grafana-db-exporter
+module grafana-db-exporter
 
 go 1.22.5
 

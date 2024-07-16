@@ -1,4 +1,3 @@
-// internal/exporter/exporter.go
 package exporter
 
 import (
@@ -9,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cstanislawski/grafana-db-exporter/internal/config"
-	"github.com/cstanislawski/grafana-db-exporter/internal/git"
-	"github.com/cstanislawski/grafana-db-exporter/internal/grafana"
+	"grafana-db-exporter/pkg/config"
+	"grafana-db-exporter/pkg/git"
+	"grafana-db-exporter/pkg/grafana"
 
 	"github.com/grafana-tools/sdk"
 	"github.com/rs/zerolog"

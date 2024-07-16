@@ -1,4 +1,3 @@
-// internal/grafana/grafana.go
 package grafana
 
 import (

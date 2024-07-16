@@ -3,8 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/cstanislawski/grafana-db-exporter/internal/config"
-	"github.com/cstanislawski/grafana-db-exporter/internal/exporter"
+	"grafana-db-exporter/pkg/config"
+	"grafana-db-exporter/pkg/exporter"
+
 	"github.com/rs/zerolog"
 )
 
