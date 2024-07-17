@@ -14,7 +14,22 @@ type Config struct {
 	SavePath      string
 	BranchPrefix  string
 	GrafanaURL    string
-	GrafanaAPIKey string // New field for API key
+	GrafanaAPIKey string
+}
+
+var requiredEnvVars = []string{
+	"SSH_URL",
+	"SSH_KEY",
+	"SSH_USER",
+	"SSH_EMAIL",
+	"SAVE_PATH",
+	"GRAFANA_URL",
+	"GRAFANA_API_KEY",
+}
+
+var optionalEnvVars = map[string]string{
+	"BASE_BRANCH":   "main",
+	"BRANCH_PREFIX": "grafana-db-exporter-",
 }
 
 func Load() (*Config, error) {
@@ -30,13 +45,29 @@ func Load() (*Config, error) {
 		GrafanaAPIKey: os.Getenv("GRAFANA_API_KEY"),
 	}
 
-	if cfg.SSHURL == "" || cfg.SSHKey == "" || cfg.SSHUser == "" || cfg.SSHEmail == "" || cfg.BaseBranch == "" || cfg.SavePath == "" || cfg.GrafanaURL == "" || cfg.GrafanaAPIKey == "" {
-		return nil, fmt.Errorf("missing required environment variables")
+	if missingVars := cfg.checkRequiredEnvVars(); len(missingVars) > 0 {
+		return nil, fmt.Errorf("missing required environment variables: %v", missingVars)
 	}
 
-	if cfg.BranchPrefix == "" {
-		cfg.BranchPrefix = "grafana_db_export_"
-	}
+	cfg.setDefaultsIfEmpty()
 
 	return cfg, nil
+}
+
+func (c *Config) checkRequiredEnvVars() []string {
+	var missingVars []string
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			missingVars = append(missingVars, envVar)
+		}
+	}
+	return missingVars
+}
+
+func (c *Config) setDefaultsIfEmpty() {
+	for envVar, defaultValue := range optionalEnvVars {
+		if os.Getenv(envVar) == "" {
+			os.Setenv(envVar, defaultValue)
+		}
+	}
 }
