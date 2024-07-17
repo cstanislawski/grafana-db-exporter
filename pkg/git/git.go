@@ -16,13 +16,13 @@ type Client struct {
 	auth *ssh.PublicKeys
 }
 
-func NewClient(sshURL, sshKey string) (*Client, error) {
+func New(RepoClonePath, sshURL, sshKey string) (*Client, error) {
 	auth, err := ssh.NewPublicKeysFromFile("git", sshKey, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SSH public keys: %w", err)
 	}
 
-	repo, err := git.PlainClone("./repo", false, &git.CloneOptions{
+	repo, err := git.PlainClone(RepoClonePath, false, &git.CloneOptions{
 		URL:  sshURL,
 		Auth: auth,
 	})
@@ -58,7 +58,7 @@ func (gc *Client) CheckoutNewBranch(baseBranch, branchPrefix string) (string, er
 	return newBranch, nil
 }
 
-func (gc *Client) CommitAndPush(branchName, sshUsername, sshEmail string) error {
+func (gc *Client) CommitAll(sshUsername, sshEmail string) error {
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
@@ -78,7 +78,11 @@ func (gc *Client) CommitAndPush(branchName, sshUsername, sshEmail string) error 
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	err = gc.repo.Push(&git.PushOptions{
+	return nil
+}
+
+func (gc *Client) Push(branchName string) error {
+	err := gc.repo.Push(&git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branchName, branchName))},
 		Auth:       gc.auth,

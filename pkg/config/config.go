@@ -10,19 +10,24 @@ type Config struct {
 	SSHKey        string
 	SSHUser       string
 	SSHEmail      string
-	BaseBranch    string
-	SavePath      string
-	BranchPrefix  string
+	RepoClonePath string
+	RepoSavePath  string
 	GrafanaURL    string
-	GrafanaAPIKey string
+	GrafanaApiKey string
+
+	BaseBranch   string
+	BranchPrefix string
+	OrgID        string
 }
+
+const repoClonePath = "./repo/"
 
 var requiredEnvVars = []string{
 	"SSH_URL",
 	"SSH_KEY",
 	"SSH_USER",
 	"SSH_EMAIL",
-	"SAVE_PATH",
+	"REPO_SAVE_PATH",
 	"GRAFANA_URL",
 	"GRAFANA_API_KEY",
 }
@@ -39,10 +44,11 @@ func Load() (*Config, error) {
 		SSHUser:       os.Getenv("SSH_USER"),
 		SSHEmail:      os.Getenv("SSH_EMAIL"),
 		BaseBranch:    os.Getenv("BASE_BRANCH"),
-		SavePath:      os.Getenv("SAVE_PATH"),
+		RepoClonePath: repoClonePath,
+		RepoSavePath:  repoClonePath + os.Getenv("REPO_SAVE_PATH"),
 		BranchPrefix:  os.Getenv("BRANCH_PREFIX"),
 		GrafanaURL:    os.Getenv("GRAFANA_URL"),
-		GrafanaAPIKey: os.Getenv("GRAFANA_API_KEY"),
+		GrafanaApiKey: os.Getenv("GRAFANA_API_KEY"),
 	}
 
 	if missingVars := cfg.checkRequiredEnvVars(); len(missingVars) > 0 {

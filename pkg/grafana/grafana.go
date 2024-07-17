@@ -11,8 +11,8 @@ type Client struct {
 	client *sdk.Client
 }
 
-func NewClient(url, apiKey string) (*Client, error) {
-	client, err := sdk.NewClient(url, apiKey, sdk.DefaultHTTPClient) // Use apiKey here
+func New(url, apiKey string) (*Client, error) {
+	client, err := sdk.NewClient(url, apiKey, sdk.DefaultHTTPClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Grafana client: %w", err)
 	}
