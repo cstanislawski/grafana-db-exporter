@@ -15,9 +15,11 @@ type Config struct {
 	GrafanaURL    string
 	GrafanaApiKey string
 
-	BaseBranch   string
-	BranchPrefix string
-	OrgID        string
+	BaseBranch            string
+	BranchPrefix          string
+	SshKeyPassword        string
+	SshAcceptUnknownHosts bool
+	SshKnownHostsPath     string
 }
 
 const repoClonePath = "./repo/"
@@ -33,29 +35,43 @@ var requiredEnvVars = []string{
 }
 
 var optionalEnvVars = map[string]string{
-	"BASE_BRANCH":   "main",
-	"BRANCH_PREFIX": "grafana-db-exporter-",
+	"BASE_BRANCH":              "main",
+	"BRANCH_PREFIX":            "grafana-db-exporter-",
+	"SSH_KEY_PASSWORD":         "",
+	"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
+}
+
+func setDefaultsIfEmpty() {
+	for envVar, defaultValue := range optionalEnvVars {
+		if os.Getenv(envVar) == "" {
+			os.Setenv(envVar, defaultValue)
+		}
+	}
 }
 
 func Load() (*Config, error) {
+	setDefaultsIfEmpty()
+
 	cfg := &Config{
 		SSHURL:        os.Getenv("SSH_URL"),
 		SSHKey:        os.Getenv("SSH_KEY"),
 		SSHUser:       os.Getenv("SSH_USER"),
 		SSHEmail:      os.Getenv("SSH_EMAIL"),
-		BaseBranch:    os.Getenv("BASE_BRANCH"),
 		RepoClonePath: repoClonePath,
 		RepoSavePath:  repoClonePath + os.Getenv("REPO_SAVE_PATH"),
-		BranchPrefix:  os.Getenv("BRANCH_PREFIX"),
 		GrafanaURL:    os.Getenv("GRAFANA_URL"),
 		GrafanaApiKey: os.Getenv("GRAFANA_API_KEY"),
+
+		BaseBranch:            os.Getenv("BASE_BRANCH"),
+		BranchPrefix:          os.Getenv("BRANCH_PREFIX"),
+		SshKeyPassword:        os.Getenv("SSH_KEY_PASSWORD"),
+		SshAcceptUnknownHosts: os.Getenv("SSH_ACCEPT_UNKNOWN_HOSTS") == "true",
+		SshKnownHostsPath:     os.Getenv("SSH_KNOWN_HOSTS_PATH"),
 	}
 
 	if missingVars := cfg.checkRequiredEnvVars(); len(missingVars) > 0 {
 		return nil, fmt.Errorf("missing required environment variables: %v", missingVars)
 	}
-
-	cfg.setDefaultsIfEmpty()
 
 	return cfg, nil
 }
@@ -67,13 +83,9 @@ func (c *Config) checkRequiredEnvVars() []string {
 			missingVars = append(missingVars, envVar)
 		}
 	}
-	return missingVars
-}
 
-func (c *Config) setDefaultsIfEmpty() {
-	for envVar, defaultValue := range optionalEnvVars {
-		if os.Getenv(envVar) == "" {
-			os.Setenv(envVar, defaultValue)
-		}
+	if c.SshAcceptUnknownHosts && c.SshKnownHostsPath == "" {
+		missingVars = append(missingVars, "SSH_KNOWN_HOSTS_PATH")
 	}
+	return missingVars
 }

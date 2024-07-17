@@ -2,24 +2,40 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	gogitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type Client struct {
 	repo *git.Repository
-	auth *ssh.PublicKeys
+	auth *gogitssh.PublicKeys
 }
 
-func New(RepoClonePath, sshURL, sshKey string) (*Client, error) {
-	auth, err := ssh.NewPublicKeysFromFile("git", sshKey, "")
+func New(RepoClonePath, sshURL, sshKey, sshKeyPassword, knownHostsPath string, allowUnknownHosts bool) (*Client, error) {
+	auth, err := gogitssh.NewPublicKeysFromFile("git", sshKey, sshKeyPassword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SSH public keys: %w", err)
+	}
+
+	if allowUnknownHosts {
+		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+	} else {
+		if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("known hosts file does not exist and allowUnknownHosts is false: %w", err)
+		}
+		hostKeyCallback, err := knownhosts.New(knownHostsPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create known hosts callback: %w", err)
+		}
+		auth.HostKeyCallback = hostKeyCallback
 	}
 
 	repo, err := git.PlainClone(RepoClonePath, false, &git.CloneOptions{

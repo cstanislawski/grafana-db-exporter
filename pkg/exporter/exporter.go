@@ -32,7 +32,7 @@ func New(cfg *config.Config, logger zerolog.Logger) *Exporter {
 func (e *Exporter) Run() error {
 	var err error
 
-	e.git, err = git.New(e.cfg.RepoClonePath, e.cfg.SSHURL, e.cfg.SSHKey)
+	e.git, err = git.New(e.cfg.RepoClonePath, e.cfg.SSHURL, e.cfg.SSHKey, e.cfg.SshKeyPassword, e.cfg.SshKnownHostsPath, e.cfg.SshAcceptUnknownHosts)
 	if err != nil {
 		return fmt.Errorf("failed to create Git client: %w", err)
 	}
