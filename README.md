@@ -2,13 +2,6 @@
 
 Export your ClickOps'ed Grafana dashboards into the repository.
 
-## v1.0 requirements
-
-- List all dashboards within an organization ORG_ID,
-- export dashboards as json,
-- upload dashboards to SSH_URL git repository and create a PR based on BASE_BRANCH, to a path BASE_PATH,
-- push the branch to the repository only if there are changes.
-
 ## Usage
 
 `grafana-db-exporter` is a utility tool meant to be utilized either as a periodic job on a CI/CD pipeline, or as a Kubernetes CronJob.
