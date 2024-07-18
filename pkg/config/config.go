@@ -84,7 +84,7 @@ func (c *Config) checkRequiredEnvVars() []string {
 		}
 	}
 
-	if c.SshAcceptUnknownHosts && c.SshKnownHostsPath == "" {
+	if !c.SshAcceptUnknownHosts && c.SshKnownHostsPath == "" {
 		missingVars = append(missingVars, "SSH_KNOWN_HOSTS_PATH")
 	}
 	return missingVars
