@@ -32,3 +32,20 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Delete old SHA-tagged images
+        run: |
+          # Get the list of image tags
+          TAGS=$(gh api -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/packages/container/${{ env.IMAGE_NAME }}/versions --jq '.[].metadata.container.tags[]')
+
+          # Find and delete SHA-tagged images, keeping the most recent
+          for TAG in $TAGS; do
+            if [[ $TAG =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              if [[ $TAG != $(echo "$TAGS" | grep '^sha256:' | sort | tail -n 1) ]]; then
+                echo "Deleting old image: $TAG"
+                gh api --method DELETE /repos/${{ github.repository }}/packages/container/${{ env.IMAGE_NAME }}/versions/$(gh api -H "Accept: application/vnd.github+json" /repos/${{ github.repository }}/packages/container/${{ env.IMAGE_NAME }}/versions --jq ".[] | select(.metadata.container.tags[] == \"$TAG\") | .id")
+              fi
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
