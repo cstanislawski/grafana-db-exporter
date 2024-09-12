@@ -29,7 +29,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: ./docker/grafana-db-exporter/
+          context: .
+          file: ./docker/grafana-db-exporter/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
