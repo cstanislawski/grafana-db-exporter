@@ -8,7 +8,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/exporter
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o exporter ./cmd/exporter
 
 FROM alpine:3.20
 
@@ -16,4 +16,4 @@ WORKDIR /app
 
 COPY --from=builder /app/main .
 
-CMD ["./main"]
+CMD ["./exporter"]
