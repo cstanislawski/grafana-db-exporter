@@ -1,7 +1,7 @@
 services:
-  grafana-dashboard-exporter:
+  grafana-db-exporter:
     build:
-      context: .
+      context: ./docker/grafana-db-exporter/
       dockerfile: Dockerfile
     env_file:
       - .env
