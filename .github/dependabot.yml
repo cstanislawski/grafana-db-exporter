@@ -1,6 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: "docker"
+    directory: "/docker/grafana-db-exporter/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
     directory: "/docker/grafana/"
     schedule:
       interval: "weekly"
