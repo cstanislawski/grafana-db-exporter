@@ -1,8 +1,8 @@
 services:
   grafana-db-exporter:
     build:
-      context: ./docker/grafana-db-exporter/
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/grafana-db-exporter/Dockerfile
     env_file:
       - .env
     volumes:
