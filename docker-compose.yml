@@ -14,7 +14,9 @@ services:
       - grafana
 
   grafana:
-    image: grafana/grafana:latest
+    build:
+      context: ./docker/grafana
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
