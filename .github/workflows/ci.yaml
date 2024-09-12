@@ -1,0 +1,18 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./docker/grafana-db-exporter/Dockerfile
+          push: false
