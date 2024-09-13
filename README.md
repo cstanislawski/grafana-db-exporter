@@ -16,7 +16,7 @@ Required:
 - `SSH_EMAIL`: SSH email to use to authenticate with the repository,
 - `REPO_SAVE_PATH`: Path to save the dashboards to in the repository,
 - `GRAFANA_URL`: URL of the Grafana instance to export the dashboards from,
-- `GRAFANA_API_KEY`: API / Service Account key to use to authenticate with the Grafana instance
+- `GRAFANA_SA_TOKEN`: API key / [Service Account token](https://grafana.com/docs/grafana/latest/administration/service-accounts/) (Viewer role is enough) to authenticate with the Grafana instance
 
 Optional:
 
@@ -83,7 +83,7 @@ spec:
               value: "grafana-dashboards"
             - name: GRAFANA_URL
               value: "https://grafana.example.com"
-            - name: GRAFANA_API_KEY
+            - name: GRAFANA_SA_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: grafana-db-exporter
