@@ -6,14 +6,14 @@ import (
 )
 
 type Config struct {
-	SSHURL        string
-	SSHKey        string
-	SSHUser       string
-	SSHEmail      string
-	RepoClonePath string
-	RepoSavePath  string
-	GrafanaURL    string
-	GrafanaApiKey string
+	SSHURL         string
+	SSHKey         string
+	SSHUser        string
+	SSHEmail       string
+	RepoClonePath  string
+	RepoSavePath   string
+	GrafanaURL     string
+	GrafanaSaToken string
 
 	BaseBranch            string
 	BranchPrefix          string
@@ -31,7 +31,7 @@ var requiredEnvVars = []string{
 	"SSH_EMAIL",
 	"REPO_SAVE_PATH",
 	"GRAFANA_URL",
-	"GRAFANA_API_KEY",
+	"GRAFANA_SA_TOKEN",
 }
 
 var optionalEnvVars = map[string]string{
@@ -53,14 +53,14 @@ func Load() (*Config, error) {
 	setDefaultsIfEmpty()
 
 	cfg := &Config{
-		SSHURL:        os.Getenv("SSH_URL"),
-		SSHKey:        os.Getenv("SSH_KEY"),
-		SSHUser:       os.Getenv("SSH_USER"),
-		SSHEmail:      os.Getenv("SSH_EMAIL"),
-		RepoClonePath: repoClonePath,
-		RepoSavePath:  repoClonePath + os.Getenv("REPO_SAVE_PATH"),
-		GrafanaURL:    os.Getenv("GRAFANA_URL"),
-		GrafanaApiKey: os.Getenv("GRAFANA_API_KEY"),
+		SSHURL:         os.Getenv("SSH_URL"),
+		SSHKey:         os.Getenv("SSH_KEY"),
+		SSHUser:        os.Getenv("SSH_USER"),
+		SSHEmail:       os.Getenv("SSH_EMAIL"),
+		RepoClonePath:  repoClonePath,
+		RepoSavePath:   repoClonePath + os.Getenv("REPO_SAVE_PATH"),
+		GrafanaURL:     os.Getenv("GRAFANA_URL"),
+		GrafanaSaToken: os.Getenv("GRAFANA_SA_TOKEN"),
 
 		BaseBranch:            os.Getenv("BASE_BRANCH"),
 		BranchPrefix:          os.Getenv("BRANCH_PREFIX"),

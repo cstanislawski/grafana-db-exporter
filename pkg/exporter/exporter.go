@@ -37,7 +37,7 @@ func (e *Exporter) Run() error {
 		return fmt.Errorf("failed to create Git client: %w", err)
 	}
 
-	e.grafana, err = grafana.New(e.cfg.GrafanaURL, e.cfg.GrafanaApiKey)
+	e.grafana, err = grafana.New(e.cfg.GrafanaURL, e.cfg.GrafanaSaToken)
 	if err != nil {
 		return fmt.Errorf("failed to create Grafana client: %w", err)
 	}
