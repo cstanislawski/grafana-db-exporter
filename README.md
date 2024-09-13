@@ -87,7 +87,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: grafana-db-exporter
-                  key: grafana-api-key
+                  key: grafana-sa-token
             - name: BASE_BRANCH
               value: "main"
             - name: BRANCH_PREFIX
