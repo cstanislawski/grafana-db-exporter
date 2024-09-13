@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -49,7 +50,7 @@ func New(RepoClonePath, sshURL, sshKey, sshKeyPassword, knownHostsPath string, a
 	return &Client{repo: repo, auth: auth}, nil
 }
 
-func (gc *Client) CheckoutNewBranch(baseBranch, branchPrefix string) (string, error) {
+func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefix string) (string, error) {
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return "", fmt.Errorf("failed to get worktree: %w", err)
@@ -74,7 +75,7 @@ func (gc *Client) CheckoutNewBranch(baseBranch, branchPrefix string) (string, er
 	return newBranch, nil
 }
 
-func (gc *Client) CommitAll(sshUsername, sshEmail string) error {
+func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) error {
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
@@ -85,11 +86,14 @@ func (gc *Client) CommitAll(sshUsername, sshEmail string) error {
 		return fmt.Errorf("failed to add files: %w", err)
 	}
 
-	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{All: true, Author: &object.Signature{
-		Name:  sshUsername,
-		Email: sshEmail,
-		When:  time.Now(),
-	}})
+	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{
+		All: true,
+		Author: &object.Signature{
+			Name:  sshUsername,
+			Email: sshEmail,
+			When:  time.Now(),
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
@@ -97,8 +101,8 @@ func (gc *Client) CommitAll(sshUsername, sshEmail string) error {
 	return nil
 }
 
-func (gc *Client) Push(branchName string) error {
-	err := gc.repo.Push(&git.PushOptions{
+func (gc *Client) Push(ctx context.Context, branchName string) error {
+	err := gc.repo.PushContext(ctx, &git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branchName, branchName))},
 		Auth:       gc.auth,
