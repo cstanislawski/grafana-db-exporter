@@ -14,7 +14,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -32,7 +32,7 @@ func run() error {
 
 	log := logger.New()
 
-	log.Info().Msg("Initializing grafana-db-exporter")
+	log.Info().Msg("initializing grafana-db-exporter")
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -44,11 +44,11 @@ func run() error {
 		return fmt.Errorf("failed to create exporter: %w", err)
 	}
 
-	log.Info().Msg("Starting grafana-db-exporter")
+	log.Info().Msg("starting grafana-db-exporter")
 	if err := exp.Run(ctx); err != nil {
 		return fmt.Errorf("exporter failed: %w", err)
 	}
 
-	log.Info().Msg("Grafana-db-exporter completed successfully")
+	log.Info().Msg("grafana-db-exporter completed successfully")
 	return nil
 }

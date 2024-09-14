@@ -58,7 +58,7 @@ func (e *Exporter) Run(ctx context.Context) error {
 	}
 
 	if len(diffedDashboards) == 0 {
-		e.logger.Info().Msg("No changes detected in dashboards")
+		e.logger.Info().Msg("no changes detected in dashboards")
 		return nil
 	}
 
@@ -74,7 +74,7 @@ func (e *Exporter) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
 
-	e.logger.Info().Str("branch", branchName).Msg("Pushed changes to branch")
+	e.logger.Info().Str("branch", branchName).Msg("pushed changes to branch")
 	return nil
 }
 
@@ -132,7 +132,7 @@ func (e *Exporter) saveDashboards(ctx context.Context, dashboards []sdk.Board) e
 			e.logger.Info().
 				Str("dashboard", dashboard.UID).
 				Str("path", filePath).
-				Msg("Saved dashboard")
+				Msg("saved dashboard")
 		}
 	}
 	return nil
