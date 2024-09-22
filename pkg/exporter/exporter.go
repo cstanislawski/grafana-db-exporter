@@ -110,8 +110,10 @@ func (e *Exporter) getDiffedDashboards(ctx context.Context, dashboards []sdk.Boa
 }
 
 func (e *Exporter) saveDashboards(ctx context.Context, dashboards []sdk.Board) error {
-	if err := os.MkdirAll(e.cfg.RepoSavePath, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	fullSavePath := e.cfg.RepoSavePath
+
+	if err := os.MkdirAll(fullSavePath, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", fullSavePath, err)
 	}
 
 	for _, dashboard := range dashboards {
@@ -124,9 +126,12 @@ func (e *Exporter) saveDashboards(ctx context.Context, dashboards []sdk.Board) e
 				return fmt.Errorf("failed to marshal dashboard: %w", err)
 			}
 
-			filePath := filepath.Join(e.cfg.RepoSavePath, fmt.Sprintf("%s.json", dashboard.UID))
+			filePath := filepath.Join(fullSavePath, fmt.Sprintf("%s.json", dashboard.UID))
+
+			e.logger.Info().Str("path", filePath).Msg("Writing dashboard file")
+
 			if err := os.WriteFile(filePath, dashboardJson, 0644); err != nil {
-				return fmt.Errorf("failed to write dashboard file: %w", err)
+				return fmt.Errorf("failed to write dashboard file %s: %w", filePath, err)
 			}
 
 			e.logger.Info().

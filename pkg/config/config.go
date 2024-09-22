@@ -34,6 +34,15 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
+	if cfg.RepoClonePath == "" {
+		cfg.RepoClonePath = "./repo"
+	}
+
+	if cfg.RepoSavePath == "" {
+		cfg.RepoSavePath = "dashboards"
+	}
+	cfg.RepoSavePath = filepath.Join(cfg.RepoClonePath, cfg.RepoSavePath)
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
@@ -54,10 +63,6 @@ func (c *Config) Validate() error {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
 			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
 		}
-	}
-
-	if err := os.MkdirAll(filepath.Dir(c.RepoSavePath), os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create directory for repo save path: %w", err)
 	}
 
 	return nil
