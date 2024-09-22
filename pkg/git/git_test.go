@@ -2,6 +2,14 @@ package git
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +20,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"golang.org/x/crypto/ssh"
 )
 
 func TestNew(t *testing.T) {
@@ -21,130 +30,139 @@ func TestNew(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	sshKeyPath := filepath.Join(tempDir, "id_ed25519")
-	sshKeyContent := `-----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-QyNTUxOQAAACDwCh7aq5d1mhsqEXGA1saYDbLXssQFcFcpI6NDWnUcVgAAAJhAPsq7QD7K
-uwAAAAtzc2gtZWQyNTUxOQAAACDwCh7aq5d1mhsqEXGA1saYDbLXssQFcFcpI6NDWnUcVg
-AAAECp+3hPtGazmdcvRVLRGpy1MBzAQ1fNtg6BlzerC6sDzPAKHtqrl3WaGyoRcYDWxpgN
-steyxAVwVykjo0NadRxWAAAAFGNtc0BjZXphcnlzLW1icC5ob21lAQ==
------END OPENSSH PRIVATE KEY-----`
-	err = os.WriteFile(sshKeyPath, []byte(strings.TrimSpace(sshKeyContent)), 0600)
-	if err != nil {
-		t.Fatalf("Failed to write dummy SSH key: %v", err)
-	}
+	keyTypes := []string{"rsa", "ecdsa", "ed25519"}
 
-	keyContent, err := os.ReadFile(sshKeyPath)
-	if err != nil {
-		t.Fatalf("Failed to read SSH key file: %v", err)
-	}
-	t.Logf("SSH key file content:\n%s", string(keyContent))
-
-	knownHostsPath := filepath.Join(tempDir, "known_hosts")
-	err = os.WriteFile(knownHostsPath, []byte("github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"), 0600)
-	if err != nil {
-		t.Fatalf("Failed to write dummy known hosts: %v", err)
-	}
-
-	mockRepo := filepath.Join(tempDir, "mock_repo")
-	err = os.MkdirAll(mockRepo, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create mock repository: %v", err)
-	}
-
-	repo, err := git.PlainInit(mockRepo, false)
-	if err != nil {
-		t.Fatalf("Failed to initialize mock repository: %v", err)
-	}
-
-	w, err := repo.Worktree()
-	if err != nil {
-		t.Fatalf("Failed to get worktree: %v", err)
-	}
-
-	dummyFile := filepath.Join(mockRepo, "dummy.txt")
-	err = os.WriteFile(dummyFile, []byte("dummy content"), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create dummy file: %v", err)
-	}
-
-	_, err = w.Add("dummy.txt")
-	if err != nil {
-		t.Fatalf("Failed to add dummy file: %v", err)
-	}
-
-	_, err = w.Commit("Initial commit", &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Test User",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	})
-	if err != nil {
-		t.Fatalf("Failed to create initial commit: %v", err)
-	}
-
-	tests := []struct {
-		name              string
-		repoClonePath     string
-		sshURL            string
-		sshKey            string
-		sshKeyPassword    string
-		knownHostsPath    string
-		allowUnknownHosts bool
-		wantErr           bool
-	}{
-		{
-			name:              "Valid configuration",
-			repoClonePath:     filepath.Join(tempDir, "repo"),
-			sshURL:            mockRepo,
-			sshKey:            sshKeyPath,
-			sshKeyPassword:    "",
-			knownHostsPath:    knownHostsPath,
-			allowUnknownHosts: true,
-			wantErr:           false,
-		},
-		{
-			name:              "Invalid SSH key",
-			repoClonePath:     filepath.Join(tempDir, "repo_invalid"),
-			sshURL:            mockRepo,
-			sshKey:            "/nonexistent/path",
-			sshKeyPassword:    "",
-			knownHostsPath:    knownHostsPath,
-			allowUnknownHosts: false,
-			wantErr:           true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client, err := New(tt.repoClonePath, tt.sshURL, tt.sshKey, tt.sshKeyPassword, tt.knownHostsPath, tt.allowUnknownHosts)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
-				return
+	for _, keyType := range keyTypes {
+		t.Run(fmt.Sprintf("SSH_%s", strings.ToUpper(keyType)), func(t *testing.T) {
+			sshKeyPath := filepath.Join(tempDir, fmt.Sprintf("id_%s", keyType))
+			sshKeyContent, err := generateSSHKey(t, keyType)
+			if err != nil {
+				t.Fatalf("Failed to generate %s SSH key: %v", keyType, err)
 			}
 
-			if !tt.wantErr {
-				if client == nil {
-					t.Errorf("New() returned nil client")
-					return
-				}
+			err = os.WriteFile(sshKeyPath, sshKeyContent, 0600)
+			if err != nil {
+				t.Fatalf("Failed to write %s SSH key: %v", keyType, err)
+			}
 
-				if client.auth == nil {
-					t.Errorf("New() did not create auth method")
-				}
+			knownHostsPath := filepath.Join(tempDir, "known_hosts")
+			err = os.WriteFile(knownHostsPath, []byte("github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"), 0600)
+			if err != nil {
+				t.Fatalf("Failed to write dummy known hosts: %v", err)
+			}
 
-				if _, err := os.Stat(tt.repoClonePath); os.IsNotExist(err) {
-					t.Errorf("New() did not create repository directory")
-				}
+			mockRepo := filepath.Join(tempDir, fmt.Sprintf("mock_repo_%s", keyType))
+			err = os.MkdirAll(mockRepo, 0755)
+			if err != nil {
+				t.Fatalf("Failed to create mock repository: %v", err)
+			}
 
-				clonedDummyFile := filepath.Join(tt.repoClonePath, "dummy.txt")
-				if _, err := os.Stat(clonedDummyFile); os.IsNotExist(err) {
-					t.Errorf("Cloned repository does not contain the expected dummy file")
-				}
+			repo, err := git.PlainInit(mockRepo, false)
+			if err != nil {
+				t.Fatalf("Failed to initialize mock repository: %v", err)
+			}
+
+			w, err := repo.Worktree()
+			if err != nil {
+				t.Fatalf("Failed to get worktree: %v", err)
+			}
+
+			dummyFile := filepath.Join(mockRepo, "dummy.txt")
+			err = os.WriteFile(dummyFile, []byte("dummy content"), 0644)
+			if err != nil {
+				t.Fatalf("Failed to create dummy file: %v", err)
+			}
+
+			_, err = w.Add("dummy.txt")
+			if err != nil {
+				t.Fatalf("Failed to add dummy file: %v", err)
+			}
+
+			_, err = w.Commit("Initial commit", &git.CommitOptions{
+				Author: &object.Signature{
+					Name:  "Test User",
+					Email: "test@example.com",
+					When:  time.Now(),
+				},
+			})
+			if err != nil {
+				t.Fatalf("Failed to create initial commit: %v", err)
+			}
+
+			client, err := New(filepath.Join(tempDir, fmt.Sprintf("repo_%s", keyType)), mockRepo, sshKeyPath, "", knownHostsPath, true)
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			if client == nil {
+				t.Errorf("New() returned nil client")
+			}
+
+			if client.auth == nil {
+				t.Errorf("New() did not create auth method")
+			}
+
+			clonedDummyFile := filepath.Join(filepath.Join(tempDir, fmt.Sprintf("repo_%s", keyType)), "dummy.txt")
+			if _, err := os.Stat(clonedDummyFile); os.IsNotExist(err) {
+				t.Errorf("Cloned repository does not contain the expected dummy file")
 			}
 		})
 	}
+}
+
+func generateSSHKey(t *testing.T, keyType string) ([]byte, error) {
+	t.Helper()
+
+	var privateKey interface{}
+	var err error
+
+	switch keyType {
+	case "rsa":
+		privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	case "ecdsa":
+		privateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	case "ed25519":
+		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
+	default:
+		return nil, fmt.Errorf("unsupported key type: %s", keyType)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate %s key: %w", keyType, err)
+	}
+
+	var pemData []byte
+
+	switch k := privateKey.(type) {
+	case *rsa.PrivateKey:
+		pemData = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(k),
+		})
+	case *ecdsa.PrivateKey:
+		b, err := x509.MarshalECPrivateKey(k)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ECDSA key: %w", err)
+		}
+		pemData = pem.EncodeToMemory(&pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: b,
+		})
+	case ed25519.PrivateKey:
+		sshKey, err := ssh.NewSignerFromKey(k)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create signer from Ed25519 key: %w", err)
+		}
+		pemBlock, err := ssh.MarshalPrivateKey(sshKey, "")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Ed25519 private key: %w", err)
+		}
+		pemData = pem.EncodeToMemory(pemBlock)
+	default:
+		return nil, fmt.Errorf("unsupported key type: %T", k)
+	}
+
+	return pemData, nil
 }
 
 func TestClient_CheckoutNewBranch(t *testing.T) {

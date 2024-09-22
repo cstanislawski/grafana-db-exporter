@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"strings"
@@ -32,22 +33,12 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 
 	var signer ssh.Signer
 	if sshKeyPassword == "" {
-		signer, err = ssh.ParsePrivateKey(sshKey)
-		if err != nil {
-			key, err := x509.ParsePKCS8PrivateKey(sshKey)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse SSH key: %w", err)
-			}
-			signer, err = ssh.NewSignerFromKey(key)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create signer from parsed key: %w", err)
-			}
-		}
+		signer, err = parseSSHPrivateKey(sshKey)
 	} else {
 		signer, err = ssh.ParsePrivateKeyWithPassphrase(sshKey, []byte(sshKeyPassword))
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse SSH key: %w, key content: %s", err, string(sshKey))
+		return nil, fmt.Errorf("failed to parse SSH key: %w", err)
 	}
 
 	auth := &gogitssh.PublicKeys{User: "git", Signer: signer}
@@ -74,6 +65,28 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 	}
 
 	return &Client{repo: repo, auth: auth}, nil
+}
+
+func parseSSHPrivateKey(privateKey []byte) (ssh.Signer, error) {
+	block, _ := pem.Decode(privateKey)
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse PEM block containing the private key")
+	}
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		return ssh.ParsePrivateKey(privateKey)
+	case "EC PRIVATE KEY":
+		return ssh.ParsePrivateKey(privateKey)
+	case "OPENSSH PRIVATE KEY":
+		return ssh.ParsePrivateKey(privateKey)
+	default:
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		return ssh.NewSignerFromKey(key)
+	}
 }
 
 func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefix string) (string, error) {
