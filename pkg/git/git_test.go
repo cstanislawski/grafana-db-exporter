@@ -2,7 +2,6 @@ package git
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +34,7 @@ steyxAVwVykjo0NadRxWAAAAFGNtc0BjZXphcnlzLW1icC5ob21lAQ==
 		t.Fatalf("Failed to write dummy SSH key: %v", err)
 	}
 
-	keyContent, err := ioutil.ReadFile(sshKeyPath)
+	keyContent, err := os.ReadFile(sshKeyPath)
 	if err != nil {
 		t.Fatalf("Failed to read SSH key file: %v", err)
 	}
@@ -64,7 +63,7 @@ steyxAVwVykjo0NadRxWAAAAFGNtc0BjZXphcnlzLW1icC5ob21lAQ==
 	}
 
 	dummyFile := filepath.Join(mockRepo, "dummy.txt")
-	err = ioutil.WriteFile(dummyFile, []byte("dummy content"), 0644)
+	err = os.WriteFile(dummyFile, []byte("dummy content"), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create dummy file: %v", err)
 	}
