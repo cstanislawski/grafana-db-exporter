@@ -2,8 +2,10 @@ package git
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -20,11 +22,35 @@ type Client struct {
 	auth *gogitssh.PublicKeys
 }
 
-func New(RepoClonePath, sshURL, sshKey, sshKeyPassword, knownHostsPath string, allowUnknownHosts bool) (*Client, error) {
-	auth, err := gogitssh.NewPublicKeysFromFile("git", sshKey, sshKeyPassword)
+func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath string, allowUnknownHosts bool) (*Client, error) {
+	sshKey, err := os.ReadFile(sshKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SSH public keys: %w", err)
+		return nil, fmt.Errorf("failed to read SSH key: %w", err)
 	}
+
+	sshKey = []byte(strings.TrimSpace(string(sshKey)))
+
+	var signer ssh.Signer
+	if sshKeyPassword == "" {
+		signer, err = ssh.ParsePrivateKey(sshKey)
+		if err != nil {
+			key, err := x509.ParsePKCS8PrivateKey(sshKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse SSH key: %w", err)
+			}
+			signer, err = ssh.NewSignerFromKey(key)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create signer from parsed key: %w", err)
+			}
+		}
+	} else {
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(sshKey, []byte(sshKeyPassword))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse SSH key: %w, key content: %s", err, string(sshKey))
+	}
+
+	auth := &gogitssh.PublicKeys{User: "git", Signer: signer}
 
 	if allowUnknownHosts {
 		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
@@ -39,7 +65,7 @@ func New(RepoClonePath, sshURL, sshKey, sshKeyPassword, knownHostsPath string, a
 		auth.HostKeyCallback = hostKeyCallback
 	}
 
-	repo, err := git.PlainClone(RepoClonePath, false, &git.CloneOptions{
+	repo, err := git.PlainClone(repoClonePath, false, &git.CloneOptions{
 		URL:  sshURL,
 		Auth: auth,
 	})

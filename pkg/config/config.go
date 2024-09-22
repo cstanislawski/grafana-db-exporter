@@ -42,7 +42,7 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if _, err := url.Parse(c.GrafanaURL); err != nil {
+	if _, err := url.ParseRequestURI(c.GrafanaURL); err != nil {
 		return fmt.Errorf("invalid Grafana URL: %w", err)
 	}
 
