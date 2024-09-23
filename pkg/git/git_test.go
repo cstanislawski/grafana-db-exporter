@@ -16,11 +16,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "git-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	keyTypes := []string{"rsa", "ecdsa", "ed25519"}
 
@@ -31,8 +27,6 @@ func TestNew(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to generate %s SSH key: %v", keyType, err)
 			}
-
-			t.Logf("Generated %s key content:\n%s", keyType, string(sshKeyContent))
 
 			err = os.WriteFile(sshKeyPath, sshKeyContent, 0600)
 			if err != nil {
