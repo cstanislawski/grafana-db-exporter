@@ -6,7 +6,10 @@ services:
     env_file:
       - .env
     volumes:
+      # mount the ssh key to the container
       - ~/.ssh/id_rsa:/app/.ssh/id_rsa:ro
+      # - ~/.ssh/id_ed25519:/app/.ssh/id_ed25519:ro
+      # - ~/.ssh/id_ecdsa:/app/.ssh/id_ecdsa:ro
       - ~/.ssh/known_hosts:/app/.ssh/known_hosts:ro
     networks:
       - grafana-network
