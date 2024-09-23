@@ -19,3 +19,14 @@ jobs:
           context: .
           file: ./docker/grafana-db-exporter/Dockerfile
           push: false
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.1
+      - name: Run go test
+        run: go test ./...
