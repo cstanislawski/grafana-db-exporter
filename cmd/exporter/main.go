@@ -22,26 +22,25 @@ func main() {
 
 	setupSignalHandler(cancel)
 
-	logger.New()
+	if err := run(ctx); err != nil {
+		logger.Log.Fatal().Err(err).Msg("Application failed")
+	}
 
-	logger.Log.Info().Msg("starting grafana-db-exporter")
+	logger.Log.Info().Msg("Grafana DB exporter completed successfully")
+}
+
+func run(ctx context.Context) error {
+	logger.New()
+	logger.Log.Info().Msg("Starting Grafana DB exporter")
 
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to load configuration")
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	if err := run(ctx, cfg); err != nil {
-		logger.Log.Fatal().Err(err).Msg("application failed")
-	}
-
-	logger.Log.Info().Msg("grafana-db-exporter completed successfully")
-}
-
-func run(ctx context.Context, cfg *config.Config) error {
-	gitClient, err := git.New(cfg.RepoClonePath, cfg.SSHURL, cfg.SSHKey, cfg.SshKeyPassword, cfg.SshKnownHostsPath, cfg.SshAcceptUnknownHosts)
+	gitClient, err := setupGitClient(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to create Git client: %w", err)
+		return fmt.Errorf("failed to setup Git client: %w", err)
 	}
 
 	grafanaClient, err := grafana.New(cfg.GrafanaURL, cfg.GrafanaSaToken)
@@ -53,13 +52,13 @@ func run(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new branch: %w", err)
 	}
-	logger.Log.Info().Str("branch", branchName).Msg("created new git branch")
+	logger.Log.Info().Str("branch", branchName).Msg("Created new git branch")
 
 	dashboards, err := fetchDashboards(ctx, grafanaClient)
 	if err != nil {
 		return fmt.Errorf("failed to fetch dashboards: %w", err)
 	}
-	logger.Log.Info().Int("count", len(dashboards)).Msg("fetched dashboards")
+	logger.Log.Info().Int("count", len(dashboards)).Msg("Fetched dashboards")
 
 	savedCount, err := saveDashboards(ctx, dashboards, cfg.RepoSavePath)
 	if err != nil {
@@ -70,12 +69,16 @@ func run(ctx context.Context, cfg *config.Config) error {
 		if err := commitAndPushChanges(ctx, gitClient, cfg, branchName); err != nil {
 			return fmt.Errorf("failed to commit and push changes: %w", err)
 		}
-		logger.Log.Info().Int("count", savedCount).Str("branch", branchName).Msg("committed and pushed dashboard changes")
+		logger.Log.Info().Int("count", savedCount).Str("branch", branchName).Msg("Committed and pushed dashboard changes")
 	} else {
-		logger.Log.Info().Msg("no changes to commit")
+		logger.Log.Info().Msg("No changes to commit")
 	}
 
 	return nil
+}
+
+func setupGitClient(cfg *config.Config) (*git.Client, error) {
+	return git.New(cfg.RepoClonePath, cfg.SSHURL, cfg.SSHKey, cfg.SshKeyPassword, cfg.SshKnownHostsPath, cfg.SshAcceptUnknownHosts)
 }
 
 func createNewBranch(ctx context.Context, gitClient *git.Client, cfg *config.Config) (string, error) {
@@ -94,19 +97,28 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, savePat
 		case <-ctx.Done():
 			return savedCount, ctx.Err()
 		default:
-			dashboardJSON, err := json.MarshalIndent(dashboard, "", "  ")
-			if err != nil {
-				return savedCount, fmt.Errorf("failed to marshal dashboard: %w", err)
-			}
-
-			filePath := filepath.Join(savePath, fmt.Sprintf("%s.json", dashboard.UID))
-			if err := os.WriteFile(filePath, dashboardJSON, 0644); err != nil {
-				return savedCount, fmt.Errorf("failed to write dashboard file: %w", err)
+			if err := saveDashboard(dashboard, savePath); err != nil {
+				return savedCount, fmt.Errorf("failed to save dashboard %s: %w", dashboard.UID, err)
 			}
 			savedCount++
 		}
 	}
 	return savedCount, nil
+}
+
+func saveDashboard(dashboard grafana.Dashboard, savePath string) error {
+	filePath := filepath.Join(savePath, fmt.Sprintf("%s.json", dashboard.UID))
+
+	data, err := json.MarshalIndent(dashboard.Data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal dashboard data: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write dashboard file: %w", err)
+	}
+
+	return nil
 }
 
 func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
