@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"grafana-db-exporter/pkg/config"
-	"grafana-db-exporter/pkg/git"
-	"grafana-db-exporter/pkg/grafana"
-	"grafana-db-exporter/pkg/logger"
+	"grafana-db-exporter/internal/config"
+	"grafana-db-exporter/internal/git"
+	"grafana-db-exporter/internal/grafana"
+	"grafana-db-exporter/internal/logger"
 )
 
 func main() {
