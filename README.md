@@ -21,10 +21,13 @@ Required:
 
 Optional:
 
-- `BASE_BRANCH`: Branch to create the PR against. Defaults to `main`
-- `BRANCH_PREFIX`: Prefix to use for the branch name. Defaults to `grafana-db-exporter-`
-- `SSH_KEY_PASSWORD`: Passphrase to use to decrypt the SSH key. Defaults to `""`
-- `SSH_ACCEPT_UNKNOWN_HOSTS`: Whether to ignore unknown hosts when connecting to the Grafana instance, defaults to `false`
+- `BASE_BRANCH`: Branch to create the PR against, string, defaults to `main`
+- `BRANCH_PREFIX`: Prefix to use for the branch name, string, defaults to `grafana-db-exporter-`
+- `SSH_KEY_PASSWORD`: Passphrase to use to decrypt the SSH key, string, defaults to `""`
+- `SSH_ACCEPT_UNKNOWN_HOSTS`: Whether to ignore unknown hosts when connecting to the Grafana instance, bool, defaults to `false`
+- `ENABLE_RETRIES` - Whether to retry the export process in case of failure, bool, defaults to `true`,
+- `NUM_OF_RETRIES` - Number of retries to perform in case of failure, uint, uint, defaults to `3`,
+- `RETRY_INTERVAL` - Interval between retries in case of failure, uint, uint, defaults to `5` (seconds),
 
 ### Examples
 
