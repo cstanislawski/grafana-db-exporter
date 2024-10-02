@@ -14,6 +14,7 @@ import (
 	"grafana-db-exporter/internal/git"
 	"grafana-db-exporter/internal/grafana"
 	"grafana-db-exporter/internal/logger"
+	"grafana-db-exporter/internal/utils"
 )
 
 func main() {
@@ -54,20 +55,27 @@ func run(ctx context.Context) error {
 	}
 	logger.Log.Info().Str("branch", branchName).Msg("Created new git branch")
 
-	dashboards, err := fetchDashboards(ctx, grafanaClient)
+	dashboards, err := utils.Retry(ctx, cfg, "fetch dashboards", func() ([]grafana.Dashboard, error) {
+		return fetchDashboards(ctx, grafanaClient)
+	})
 	if err != nil {
-		return fmt.Errorf("failed to fetch dashboards: %w", err)
+		return err
 	}
 	logger.Log.Info().Int("count", len(dashboards)).Msg("Fetched dashboards")
 
-	savedCount, err := saveDashboards(ctx, dashboards, cfg.RepoSavePath)
+	savedCount, err := utils.Retry(ctx, cfg, "save dashboards", func() (int, error) {
+		return saveDashboards(ctx, dashboards, cfg.RepoSavePath)
+	})
 	if err != nil {
-		return fmt.Errorf("failed to save dashboards: %w", err)
+		return err
 	}
 
 	if savedCount > 0 {
-		if err := commitAndPushChanges(ctx, gitClient, cfg, branchName); err != nil {
-			return fmt.Errorf("failed to commit and push changes: %w", err)
+		_, err = utils.Retry(ctx, cfg, "commit and push changes", func() (interface{}, error) {
+			return nil, commitAndPushChanges(ctx, gitClient, cfg, branchName)
+		})
+		if err != nil {
+			return err
 		}
 		logger.Log.Info().Int("count", savedCount).Str("branch", branchName).Msg("Committed and pushed dashboard changes")
 	} else {
