@@ -10,7 +10,7 @@ Export your ClickOps'ed Grafana dashboards into the repository.
 
 Required:
 
-- `SSH_URL`: SSH URL of the repository to push the dashboards to, string, required
+- `SSH_URL`: SSH URL of the repository to push the dashboards to, string, defaults to `""`
 - `SSH_KEY`: Path to the SSH key to use to authenticate with the repository, supported formats are `rsa`, `ecdsa`, `ed25519`, string, defaults to `""`
 - `SSH_USER`: SSH user to use to authenticate with the repository, string, defaults to `""`
 - `SSH_EMAIL`: SSH email to use to authenticate with the repository, string, defaults to `""`
