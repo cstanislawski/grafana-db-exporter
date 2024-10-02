@@ -26,6 +26,10 @@ type Config struct {
 	SshKnownHostsPath     string `env:"SSH_KNOWN_HOSTS_PATH"`
 
 	RepoClonePath string `env:"REPO_CLONE_PATH,default=./repo/"`
+
+	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
+	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
+	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
 }
 
 func Load() (*Config, error) {
@@ -59,7 +63,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("SSH key file does not exist: %s", c.SSHKey)
 	}
 
-	if !c.SshAcceptUnknownHosts {
+	if !c.SshAcceptUnknownHosts && c.SshKnownHostsPath != "" {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
 			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
 		}
@@ -120,6 +124,12 @@ func setField(value reflect.Value, envValue string) error {
 			return fmt.Errorf("invalid boolean value: %s", envValue)
 		}
 		value.SetBool(boolValue)
+	case reflect.Uint:
+		uintValue, err := strconv.ParseUint(envValue, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid unsigned integer value: %s", envValue)
+		}
+		value.SetUint(uintValue)
 	default:
 		return fmt.Errorf("unsupported field type: %s", value.Type())
 	}
