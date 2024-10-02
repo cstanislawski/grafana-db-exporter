@@ -63,7 +63,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("SSH key file does not exist: %s", c.SSHKey)
 	}
 
-	if !c.SshAcceptUnknownHosts {
+	if !c.SshAcceptUnknownHosts && c.SshKnownHostsPath != "" {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
 			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
 		}
