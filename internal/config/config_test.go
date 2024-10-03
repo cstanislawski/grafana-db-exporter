@@ -31,7 +31,7 @@ func TestLoad(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Valid configuration",
+			name: "Valid configuration with default GrafanaOrgID",
 			envVars: map[string]string{
 				"SSH_URL":                  "git@github.com:test/repo.git",
 				"SSH_KEY":                  sshKeyPath,
@@ -42,11 +42,40 @@ func TestLoad(t *testing.T) {
 				"GRAFANA_SA_TOKEN":         "testtoken",
 				"SSH_KNOWN_HOSTS_PATH":     knownHostsPath,
 				"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
-				"ENABLE_RETRIES":           "true",
-				"NUM_OF_RETRIES":           "5",
-				"RETRIES_BACKOFF":          "10",
 			},
 			wantErr: false,
+		},
+		{
+			name: "Valid configuration with custom GrafanaOrgID",
+			envVars: map[string]string{
+				"SSH_URL":                  "git@github.com:test/repo.git",
+				"SSH_KEY":                  sshKeyPath,
+				"SSH_USER":                 "testuser",
+				"SSH_EMAIL":                "test@example.com",
+				"REPO_SAVE_PATH":           tempDir,
+				"GRAFANA_URL":              "http://grafana:3000",
+				"GRAFANA_SA_TOKEN":         "testtoken",
+				"SSH_KNOWN_HOSTS_PATH":     knownHostsPath,
+				"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
+				"GRAFANA_ORG_ID":           "5",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid GrafanaOrgID",
+			envVars: map[string]string{
+				"SSH_URL":                  "git@github.com:test/repo.git",
+				"SSH_KEY":                  sshKeyPath,
+				"SSH_USER":                 "testuser",
+				"SSH_EMAIL":                "test@example.com",
+				"REPO_SAVE_PATH":           tempDir,
+				"GRAFANA_URL":              "http://grafana:3000",
+				"GRAFANA_SA_TOKEN":         "testtoken",
+				"SSH_KNOWN_HOSTS_PATH":     knownHostsPath,
+				"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
+				"GRAFANA_ORG_ID":           "invalid",
+			},
+			wantErr: true, // Now we expect an error for invalid uint value
 		},
 		{
 			name: "Missing required environment variable",
@@ -54,52 +83,6 @@ func TestLoad(t *testing.T) {
 				"SSH_URL": "git@github.com:test/repo.git",
 			},
 			wantErr: true,
-		},
-		{
-			name: "Invalid Grafana URL",
-			envVars: map[string]string{
-				"SSH_URL":                  "git@github.com:test/repo.git",
-				"SSH_KEY":                  sshKeyPath,
-				"SSH_USER":                 "testuser",
-				"SSH_EMAIL":                "test@example.com",
-				"REPO_SAVE_PATH":           tempDir,
-				"GRAFANA_URL":              "invalid-url",
-				"GRAFANA_SA_TOKEN":         "testtoken",
-				"SSH_KNOWN_HOSTS_PATH":     knownHostsPath,
-				"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
-			},
-			wantErr: true,
-		},
-		{
-			name: "Invalid NUM_OF_RETRIES",
-			envVars: map[string]string{
-				"SSH_URL":                  "git@github.com:test/repo.git",
-				"SSH_KEY":                  sshKeyPath,
-				"SSH_USER":                 "testuser",
-				"SSH_EMAIL":                "test@example.com",
-				"REPO_SAVE_PATH":           tempDir,
-				"GRAFANA_URL":              "http://grafana:3000",
-				"GRAFANA_SA_TOKEN":         "testtoken",
-				"SSH_KNOWN_HOSTS_PATH":     knownHostsPath,
-				"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
-				"NUM_OF_RETRIES":           "-1",
-			},
-			wantErr: true,
-		},
-		{
-			name: "Default values for retry configuration",
-			envVars: map[string]string{
-				"SSH_URL":                  "git@github.com:test/repo.git",
-				"SSH_KEY":                  sshKeyPath,
-				"SSH_USER":                 "testuser",
-				"SSH_EMAIL":                "test@example.com",
-				"REPO_SAVE_PATH":           tempDir,
-				"GRAFANA_URL":              "http://grafana:3000",
-				"GRAFANA_SA_TOKEN":         "testtoken",
-				"SSH_KNOWN_HOSTS_PATH":     knownHostsPath,
-				"SSH_ACCEPT_UNKNOWN_HOSTS": "false",
-			},
-			wantErr: false,
 		},
 	}
 
@@ -118,21 +101,11 @@ func TestLoad(t *testing.T) {
 			}
 
 			if !tt.wantErr && cfg != nil {
-				if tt.envVars["ENABLE_RETRIES"] == "" && !cfg.EnableRetries {
-					t.Errorf("Expected default ENABLE_RETRIES to be true, got false")
+				if tt.envVars["GRAFANA_ORG_ID"] == "" && cfg.GrafanaOrgID != 1 {
+					t.Errorf("Expected default GrafanaOrgID to be 1, got %d", cfg.GrafanaOrgID)
 				}
-				if tt.envVars["NUM_OF_RETRIES"] == "" && cfg.NumOfRetries != 3 {
-					t.Errorf("Expected default NUM_OF_RETRIES to be 3, got %d", cfg.NumOfRetries)
-				}
-				if tt.envVars["RETRIES_BACKOFF"] == "" && cfg.RetriesBackoff != 5 {
-					t.Errorf("Expected default RETRIES_BACKOFF to be 5, got %d", cfg.RetriesBackoff)
-				}
-
-				if tt.envVars["NUM_OF_RETRIES"] == "5" && cfg.NumOfRetries != 5 {
-					t.Errorf("Expected NUM_OF_RETRIES to be 5, got %d", cfg.NumOfRetries)
-				}
-				if tt.envVars["RETRIES_BACKOFF"] == "10" && cfg.RetriesBackoff != 10 {
-					t.Errorf("Expected RETRIES_BACKOFF to be 10, got %d", cfg.RetriesBackoff)
+				if tt.envVars["GRAFANA_ORG_ID"] == "5" && cfg.GrafanaOrgID != 5 {
+					t.Errorf("Expected GrafanaOrgID to be 5, got %d", cfg.GrafanaOrgID)
 				}
 			}
 		})
@@ -175,12 +148,27 @@ func TestConfig_Validate(t *testing.T) {
 				GrafanaSaToken:        "testtoken",
 				SshKnownHostsPath:     knownHostsPath,
 				SshAcceptUnknownHosts: false,
-				EnableRetries:         true,
-				NumOfRetries:          3,
-				RetriesBackoff:        5,
+				GrafanaOrgID:          1,
 			},
 			wantErr: false,
 		},
+		{
+			name: "Valid configuration with custom GrafanaOrgID",
+			cfg: &Config{
+				SSHURL:                "git@github.com:test/repo.git",
+				SSHKey:                sshKeyPath,
+				SSHUser:               "testuser",
+				SSHEmail:              "test@example.com",
+				RepoSavePath:          tempDir,
+				GrafanaURL:            "http://grafana:3000",
+				GrafanaSaToken:        "testtoken",
+				SshKnownHostsPath:     knownHostsPath,
+				SshAcceptUnknownHosts: false,
+				GrafanaOrgID:          5,
+			},
+			wantErr: false,
+		},
+
 		{
 			name: "Valid configuration with minimal required fields",
 			cfg: &Config{

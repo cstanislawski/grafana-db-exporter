@@ -18,6 +18,7 @@ type Config struct {
 	RepoSavePath   string `env:"REPO_SAVE_PATH,required"`
 	GrafanaURL     string `env:"GRAFANA_URL,required"`
 	GrafanaSaToken string `env:"GRAFANA_SA_TOKEN,required"`
+	GrafanaOrgID   uint   `env:"GRAFANA_ORG_ID,default=1"`
 
 	BaseBranch            string `env:"BASE_BRANCH,default=main"`
 	BranchPrefix          string `env:"BRANCH_PREFIX,default=grafana-db-exporter-"`
