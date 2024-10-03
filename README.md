@@ -16,7 +16,7 @@ Required:
 - `SSH_EMAIL`: SSH email to use to authenticate with the repository, string, defaults to `""`
 - `REPO_SAVE_PATH`: Path to save the dashboards to in the repository, string, defaults to `""`
 - `GRAFANA_URL`: URL of the Grafana instance to export the dashboards from, string, defaults to `""`
-- `GRAFANA_SA_TOKEN`: API key / [Service Account token](https://grafana.com/docs/grafana/latest/administration/service-accounts/) (Viewer role is enough) to authenticate with the Grafana instance, string, defaults to `""`
+- `GRAFANA_SA_TOKEN`: API key / [Service Account token](https://grafana.com/docs/grafana/latest/administration/service-accounts/) (Viewer role is enough) to authenticate with the Grafana instance, string, defaults to `""`. It is not only used for authentication, it is also a deciding factor in which organization's dashboards will be exported.
 - `SSH_KNOWN_HOSTS_PATH`: The path to the known hosts file to use when connecting to the Grafana instance, string, required if `SSH_ACCEPT_UNKNOWN_HOSTS` is `false` (default)
 
 Optional:
@@ -112,3 +112,15 @@ spec:
                 path: known_hosts
           restartPolicy: OnFailure
 ```
+
+#### Multiple Grafana organizations
+
+If you need to export dashboards from multiple Grafana organizations, you currently will need to run multiple instances of `grafana-db-exporter` with (at least) different `GRAFANA_SA_TOKEN`. The token is the only way to authenticate with the Grafana API, and it is also the token that represents the organization that the service account belongs to, limiting the access to the dashboards to the ones that the organization has access to.
+
+More info: [Grafana docs on Service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
+
+Support from export from multiple organizations, using multiple tokens, is planned but not yet supported.
+
+#### Multiple Grafana instances
+
+If you need to export dashboards from multiple Grafana instances, you need to run multiple instances of `grafana-db-exporter` with different configurations. Export from multiple Grafana instances is planned but not yet supported.
