@@ -44,7 +44,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("failed to setup Git client: %w", err)
 	}
 
-	grafanaClient, err := grafana.New(cfg.GrafanaURL, cfg.GrafanaSaToken)
+	grafanaClient, err := grafana.New(cfg.GrafanaURL, cfg.GrafanaSaToken, cfg.GrafanaOrgID)
 	if err != nil {
 		return fmt.Errorf("failed to create Grafana client: %w", err)
 	}
