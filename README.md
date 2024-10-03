@@ -10,24 +10,25 @@ Export your ClickOps'ed Grafana dashboards into the repository.
 
 Required:
 
-- `SSH_URL`: SSH URL of the repository to push the dashboards to, string, defaults to `""`
-- `SSH_KEY`: Path to the SSH key to use to authenticate with the repository, supported formats are `rsa`, `ecdsa`, `ed25519`, string, defaults to `""`
-- `SSH_USER`: SSH user to use to authenticate with the repository, string, defaults to `""`
-- `SSH_EMAIL`: SSH email to use to authenticate with the repository, string, defaults to `""`
-- `REPO_SAVE_PATH`: Path to save the dashboards to in the repository, string, defaults to `""`
-- `GRAFANA_URL`: URL of the Grafana instance to export the dashboards from, string, defaults to `""`
-- `GRAFANA_SA_TOKEN`: API key / [Service Account token](https://grafana.com/docs/grafana/latest/administration/service-accounts/) (Viewer role is enough) to authenticate with the Grafana instance, string, defaults to `""`. It is not only used for authentication, it is also a deciding factor in which organization's dashboards will be exported.
-- `SSH_KNOWN_HOSTS_PATH`: The path to the known hosts file to use when connecting to the Grafana instance, string, required if `SSH_ACCEPT_UNKNOWN_HOSTS` is `false` (default)
+- `SSH_URL` - SSH URL of the repository to push the dashboards to, string, defaults to `""`
+- `SSH_KEY` - Path to the SSH key to use to authenticate with the repository, supported formats are `rsa`, `ecdsa`, `ed25519`, string, defaults to `""`
+- `SSH_USER` - SSH user to use to authenticate with the repository, string, defaults to `""`
+- `SSH_EMAIL` - SSH email to use to authenticate with the repository, string, defaults to `""`
+- `REPO_SAVE_PATH` - Path to save the dashboards to in the repository, string, defaults to `""`
+- `GRAFANA_URL` - URL of the Grafana instance to export the dashboards from, string, defaults to `""`
+- `GRAFANA_SA_TOKEN` - API key / [Service Account token](https://grafana.com/docs/grafana/latest/administration/service-accounts/) (Viewer role is enough) to authenticate with the Grafana instance, string, defaults to `""`. It is not only used for authentication, it is also a deciding factor in which organization's dashboards will be exported.
+- `SSH_KNOWN_HOSTS_PATH` - The path to the known hosts file to use when connecting to the Grafana instance, string, required if `SSH_ACCEPT_UNKNOWN_HOSTS` is `false` (default)
 
 Optional:
 
-- `BASE_BRANCH`: Branch to create the PR against, string, defaults to `main`
-- `BRANCH_PREFIX`: Prefix to use for the branch name, string, defaults to `grafana-db-exporter-`
-- `SSH_KEY_PASSWORD`: Passphrase to use to decrypt the SSH key, string, defaults to `""`
-- `SSH_ACCEPT_UNKNOWN_HOSTS`: Whether to ignore unknown hosts when connecting to the Grafana instance, bool, defaults to `false`
-- `ENABLE_RETRIES` - Whether to retry the export process in case of failure, bool, defaults to `true`,
-- `NUM_OF_RETRIES` - Number of retries to perform in case of failure, uint, uint, defaults to `3`,
-- `RETRY_INTERVAL` - Interval between retries in case of failure, uint, uint, defaults to `5` (seconds),
+- `BASE_BRANCH` - Branch to create the PR against, string, defaults to `main`
+- `BRANCH_PREFIX` - Prefix to use for the branch name, string, defaults to `grafana-db-exporter-`
+- `SSH_KEY_PASSWORD` - Passphrase to use to decrypt the SSH key, string, defaults to `""`
+- `SSH_ACCEPT_UNKNOWN_HOSTS` - Whether to ignore unknown hosts when connecting to the Grafana instance, bool, defaults to `false`
+- `LOG_LEVEL` - Log level to use, string, defaults to `info`, available values are `debug`, `info`, `warn`, `error`, `fatal`
+- `ENABLE_RETRIES` - Whether to retry the export process in case of failure, bool, defaults to `true`
+- `NUM_OF_RETRIES` - Number of retries to perform in case of failure, uint, uint, defaults to `3`
+- `RETRY_INTERVAL` - Interval between retries in case of failure, uint, uint, defaults to `5` (seconds)
 
 ### Examples
 
