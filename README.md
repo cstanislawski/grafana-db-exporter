@@ -28,6 +28,7 @@ Optional:
 - `ENABLE_RETRIES` - Whether to retry the export process in case of failure, bool, defaults to `true`,
 - `NUM_OF_RETRIES` - Number of retries to perform in case of failure, uint, uint, defaults to `3`,
 - `RETRY_INTERVAL` - Interval between retries in case of failure, uint, uint, defaults to `5` (seconds),
+- `GRAFANA_ORG_ID` - ID of the organization to export the dashboards from, uint, defaults to `1`,
 
 ### Examples
 
