@@ -2,47 +2,119 @@ package grafana
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-
-	"github.com/grafana-tools/sdk"
+	"net/http"
+	"net/url"
+	"strconv"
 )
 
-type Dashboard struct {
-	UID   string
-	Title string
-	Data  interface{}
-}
-
 type Client struct {
-	client *sdk.Client
+	baseURL    string
+	apiKey     string
+	httpClient *http.Client
+	orgID      uint
 }
 
-func New(url, apiKey string) (*Client, error) {
-	client, err := sdk.NewClient(url, apiKey, sdk.DefaultHTTPClient)
+type Dashboard struct {
+	UID      string
+	Data     json.RawMessage
+	FolderID int64
+	IsFolder bool
+}
+
+func New(baseURL, apiKey string, orgID uint) (*Client, error) {
+	_, err := url.Parse(baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Grafana client: %w", err)
+		return nil, fmt.Errorf("invalid Grafana URL: %w", err)
 	}
-	return &Client{client: client}, nil
+
+	return &Client{
+		baseURL:    baseURL,
+		apiKey:     apiKey,
+		httpClient: http.DefaultClient,
+		orgID:      orgID,
+	}, nil
 }
 
-func (gc *Client) ListAndExportDashboards(ctx context.Context) ([]Dashboard, error) {
-	boardLinks, err := gc.client.SearchDashboards(ctx, "", false)
+func (c *Client) ListAndExportDashboards(ctx context.Context) ([]Dashboard, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/search?type=dash-db", nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search dashboards: %w", err)
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	c.addHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var searchResult []struct {
+		UID   string `json:"uid"`
+		Title string `json:"title"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
 	var dashboards []Dashboard
-	for _, link := range boardLinks {
-		board, _, err := gc.client.GetDashboardByUID(ctx, link.UID)
+	for _, result := range searchResult {
+		dashboard, err := c.getDashboard(ctx, result.UID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get dashboard by UID: %w", err)
+			return nil, fmt.Errorf("getting dashboard %s: %w", result.UID, err)
 		}
-		dashboards = append(dashboards, Dashboard{
-			UID:   board.UID,
-			Title: board.Title,
-			Data:  board,
-		})
+		dashboards = append(dashboards, dashboard)
 	}
 
 	return dashboards, nil
+}
+
+func (c *Client) getDashboard(ctx context.Context, uid string) (Dashboard, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/dashboards/uid/"+uid, nil)
+	if err != nil {
+		return Dashboard{}, fmt.Errorf("creating request: %w", err)
+	}
+
+	c.addHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return Dashboard{}, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return Dashboard{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var dashboardWrapper struct {
+		Dashboard json.RawMessage `json:"dashboard"`
+		Meta      struct {
+			IsFolder bool   `json:"isFolder"`
+			Folder   int64  `json:"folderId"`
+			UID      string `json:"uid"`
+		} `json:"meta"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&dashboardWrapper); err != nil {
+		return Dashboard{}, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return Dashboard{
+		UID:      dashboardWrapper.Meta.UID,
+		Data:     dashboardWrapper.Dashboard,
+		FolderID: dashboardWrapper.Meta.Folder,
+		IsFolder: dashboardWrapper.Meta.IsFolder,
+	}, nil
+}
+
+func (c *Client) addHeaders(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Grafana-Org-Id", strconv.FormatUint(uint64(c.orgID), 10))
 }
