@@ -115,7 +115,7 @@ spec:
 
 #### Multiple Grafana organizations
 
-If you need to export dashboards from multiple Grafana organizations, you need to run multiple instances of `grafana-db-exporter` with different (at least) different `GRAFANA_SA_TOKEN`. The token is the only way to authenticate with the Grafana API, and it is also the token that represents the organization that the service account belongs to, limiting the access to the dashboards to the ones that the organization has access to.
+If you need to export dashboards from multiple Grafana organizations, you currently will need to run multiple instances of `grafana-db-exporter` with (at least) different `GRAFANA_SA_TOKEN`. The token is the only way to authenticate with the Grafana API, and it is also the token that represents the organization that the service account belongs to, limiting the access to the dashboards to the ones that the organization has access to.
 
 More info: [Grafana docs on Service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
 
