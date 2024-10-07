@@ -118,7 +118,7 @@ func parseEnv(cfg *Config) error {
 		if err := setField(value, envValue); err != nil {
 			return fmt.Errorf("failed to set field %s: %w", field.Name, err)
 		}
-		logger.Log.Debug().Str("Field", field.Name).Str("Value", envValue).Msg("Field set successfully")
+		logger.Log.Debug().Str("Field", field.Name).Msg("Field set successfully")
 	}
 
 	return nil
