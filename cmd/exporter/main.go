@@ -50,13 +50,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create Grafana client: %w", err)
 	}
-	logger.Log.Debug().Msg("Grafana client created successfully")
 
 	branchName, err := createNewBranch(ctx, gitClient, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create new branch: %w", err)
 	}
-	logger.Log.Info().Str("branch", branchName).Msg("Created new git branch")
 
 	dashboards, err := utils.Retry(ctx, cfg, "fetch dashboards", func() ([]grafana.Dashboard, error) {
 		return fetchDashboards(ctx, grafanaClient)
@@ -90,7 +88,6 @@ func run(ctx context.Context) error {
 }
 
 func setupGitClient(cfg *config.Config) (*git.Client, error) {
-	logger.Log.Debug().Msg("Setting up Git client")
 	return git.New(cfg.RepoClonePath, cfg.SSHURL, cfg.SSHKey, cfg.SshKeyPassword, cfg.SshKnownHostsPath, cfg.SshAcceptUnknownHosts)
 }
 

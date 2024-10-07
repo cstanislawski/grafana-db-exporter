@@ -164,7 +164,6 @@ func marshalOpenSSHPrivateKey(signer ssh.Signer) []byte {
 }
 
 func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefix string) (string, error) {
-	logger.Log.Debug().Str("baseBranch", baseBranch).Str("branchPrefix", branchPrefix).Msg("Checking out new branch")
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return "", fmt.Errorf("failed to get worktree: %w", err)
@@ -179,7 +178,6 @@ func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefi
 	}
 
 	newBranch := fmt.Sprintf("%s%s", branchPrefix, time.Now().Format("20060102150405"))
-	logger.Log.Debug().Str("newBranch", newBranch).Msg("Creating new branch")
 	err = w.Checkout(&git.CheckoutOptions{
 		Create: true,
 		Branch: plumbing.NewBranchReferenceName(newBranch),
@@ -193,19 +191,16 @@ func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefi
 }
 
 func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) error {
-	logger.Log.Debug().Msg("Committing all changes")
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
 	}
 
-	logger.Log.Debug().Msg("Adding all changes")
 	_, err = w.Add(".")
 	if err != nil {
 		return fmt.Errorf("failed to add files: %w", err)
 	}
 
-	logger.Log.Debug().Msg("Creating commit")
 	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
@@ -218,12 +213,10 @@ func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) e
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	logger.Log.Debug().Msg("Changes committed successfully")
 	return nil
 }
 
 func (gc *Client) Push(ctx context.Context, branchName string) error {
-	logger.Log.Debug().Str("branchName", branchName).Msg("Pushing changes")
 	err := gc.repo.PushContext(ctx, &git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branchName, branchName))},
@@ -233,6 +226,5 @@ func (gc *Client) Push(ctx context.Context, branchName string) error {
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
 
-	logger.Log.Debug().Str("branchName", branchName).Msg("Changes pushed successfully")
 	return nil
 }
