@@ -2,18 +2,13 @@ package git
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"os"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -23,6 +18,8 @@ import (
 	gogitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+
+	"grafana-db-exporter/internal/logger"
 )
 
 type Client struct {
@@ -31,6 +28,14 @@ type Client struct {
 }
 
 func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath string, allowUnknownHosts bool) (*Client, error) {
+	logger.Log.Debug().
+		Str("repoClonePath", repoClonePath).
+		Str("sshURL", sshURL).
+		Str("sshKeyPath", sshKeyPath).
+		Str("knownHostsPath", knownHostsPath).
+		Bool("allowUnknownHosts", allowUnknownHosts).
+		Msg("Creating new Git client")
+
 	sshKey, err := os.ReadFile(sshKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SSH key: %w", err)
@@ -40,19 +45,24 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 
 	var signer ssh.Signer
 	if sshKeyPassword == "" {
+		logger.Log.Debug().Msg("Parsing SSH private key without password")
 		signer, err = parseSSHPrivateKey(sshKey)
 	} else {
+		logger.Log.Debug().Msg("Parsing SSH private key with password")
 		signer, err = ssh.ParsePrivateKeyWithPassphrase(sshKey, []byte(sshKeyPassword))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse SSH key: %w", err)
 	}
+	logger.Log.Debug().Msg("SSH key parsed successfully")
 
 	auth := &gogitssh.PublicKeys{User: "git", Signer: signer}
 
 	if allowUnknownHosts {
+		logger.Log.Debug().Msg("Allowing unknown hosts")
 		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else {
+		logger.Log.Debug().Str("knownHostsPath", knownHostsPath).Msg("Using known hosts file")
 		if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("known hosts file does not exist and allowUnknownHosts is false: %w", err)
 		}
@@ -63,6 +73,7 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 		auth.HostKeyCallback = hostKeyCallback
 	}
 
+	logger.Log.Debug().Str("repoClonePath", repoClonePath).Str("sshURL", sshURL).Msg("Cloning repository")
 	repo, err := git.PlainClone(repoClonePath, false, &git.CloneOptions{
 		URL:  sshURL,
 		Auth: auth,
@@ -70,58 +81,9 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to clone repository: %w", err)
 	}
+	logger.Log.Debug().Msg("Repository cloned successfully")
 
 	return &Client{repo: repo, auth: auth}, nil
-}
-
-func generateSSHKey(t *testing.T, keyType string) ([]byte, error) {
-	t.Helper()
-
-	var privateKey interface{}
-	var err error
-
-	switch keyType {
-	case "rsa":
-		privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
-	case "ecdsa":
-		privateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	case "ed25519":
-		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
-	default:
-		return nil, fmt.Errorf("unsupported key type: %s", keyType)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate %s key: %w", keyType, err)
-	}
-
-	var pemData []byte
-
-	switch k := privateKey.(type) {
-	case *rsa.PrivateKey:
-		pemData = pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(k),
-		})
-	case *ecdsa.PrivateKey:
-		b, err := x509.MarshalECPrivateKey(k)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal ECDSA key: %w", err)
-		}
-		pemData = pem.EncodeToMemory(&pem.Block{
-			Type:  "EC PRIVATE KEY",
-			Bytes: b,
-		})
-	case ed25519.PrivateKey:
-		pemData, err = marshalOpenSSHED25519PrivateKey(k)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal Ed25519 key: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unsupported key type: %T", k)
-	}
-
-	return pemData, nil
 }
 
 func marshalOpenSSHED25519PrivateKey(privateKey ed25519.PrivateKey) ([]byte, error) {
@@ -202,11 +164,13 @@ func marshalOpenSSHPrivateKey(signer ssh.Signer) []byte {
 }
 
 func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefix string) (string, error) {
+	logger.Log.Debug().Str("baseBranch", baseBranch).Str("branchPrefix", branchPrefix).Msg("Checking out new branch")
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return "", fmt.Errorf("failed to get worktree: %w", err)
 	}
 
+	logger.Log.Debug().Str("baseBranch", baseBranch).Msg("Checking out base branch")
 	err = w.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(baseBranch),
 	})
@@ -215,6 +179,7 @@ func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefi
 	}
 
 	newBranch := fmt.Sprintf("%s%s", branchPrefix, time.Now().Format("20060102150405"))
+	logger.Log.Debug().Str("newBranch", newBranch).Msg("Creating new branch")
 	err = w.Checkout(&git.CheckoutOptions{
 		Create: true,
 		Branch: plumbing.NewBranchReferenceName(newBranch),
@@ -223,20 +188,24 @@ func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefi
 		return "", fmt.Errorf("failed to create new branch: %w", err)
 	}
 
+	logger.Log.Debug().Str("newBranch", newBranch).Msg("New branch created and checked out successfully")
 	return newBranch, nil
 }
 
 func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) error {
+	logger.Log.Debug().Msg("Committing all changes")
 	w, err := gc.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("failed to get worktree: %w", err)
 	}
 
+	logger.Log.Debug().Msg("Adding all changes")
 	_, err = w.Add(".")
 	if err != nil {
 		return fmt.Errorf("failed to add files: %w", err)
 	}
 
+	logger.Log.Debug().Msg("Creating commit")
 	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
@@ -249,10 +218,12 @@ func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) e
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
+	logger.Log.Debug().Msg("Changes committed successfully")
 	return nil
 }
 
 func (gc *Client) Push(ctx context.Context, branchName string) error {
+	logger.Log.Debug().Str("branchName", branchName).Msg("Pushing changes")
 	err := gc.repo.PushContext(ctx, &git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branchName, branchName))},
@@ -262,5 +233,6 @@ func (gc *Client) Push(ctx context.Context, branchName string) error {
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
 
+	logger.Log.Debug().Str("branchName", branchName).Msg("Changes pushed successfully")
 	return nil
 }
