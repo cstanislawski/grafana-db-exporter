@@ -157,13 +157,6 @@ func parseSSHPrivateKey(privateKey []byte) (ssh.Signer, error) {
 	return ssh.ParsePrivateKey(privateKey)
 }
 
-func marshalOpenSSHPrivateKey(signer ssh.Signer) []byte {
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "OPENSSH PRIVATE KEY",
-		Bytes: signer.PublicKey().Marshal(),
-	})
-}
-
 func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefix string) (string, error) {
 	w, err := gc.repo.Worktree()
 	if err != nil {
