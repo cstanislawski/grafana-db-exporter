@@ -32,8 +32,6 @@ type Config struct {
 	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
 	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
 	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
-
-	LogLevel string `env:"LOG_LEVEL,default=info"`
 }
 
 func Load() (*Config, error) {
@@ -45,9 +43,6 @@ func Load() (*Config, error) {
 
 	cfg.RepoSavePath = filepath.Join(cfg.RepoClonePath, cfg.RepoSavePath)
 	logger.Log.Debug().Str("FullRepoSavePath", cfg.RepoSavePath).Msg("Full RepoSavePath")
-
-	cfg.LogLevel = strings.ToLower(cfg.LogLevel)
-	logger.Log.Debug().Str("LogLevel", cfg.LogLevel).Msg("Set LogLevel")
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
@@ -77,19 +72,6 @@ func (c *Config) Validate() error {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
 			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
 		}
-	}
-
-	logger.Log.Debug().Str("LogLevel", c.LogLevel).Msg("Validating log level")
-	validLevels := []string{"debug", "info", "warn", "error", "fatal", "panic"}
-	validLevel := false
-	for _, level := range validLevels {
-		if c.LogLevel == level {
-			validLevel = true
-			break
-		}
-	}
-	if !validLevel {
-		return fmt.Errorf("invalid log level: %s", c.LogLevel)
 	}
 
 	return nil
@@ -127,8 +109,10 @@ func parseEnv(cfg *Config) error {
 			if required {
 				return fmt.Errorf("required environment variable %s is not set", envName)
 			}
-			envValue = defaultValue
-			logger.Log.Warn().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Using default value")
+			if defaultValue != "" {
+				envValue = defaultValue
+				logger.Log.Warn().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Unset env var, using default value")
+			}
 		}
 
 		if err := setField(value, envValue); err != nil {

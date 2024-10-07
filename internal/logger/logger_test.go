@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 
 func TestLogger(t *testing.T) {
 	buf := &bytes.Buffer{}
-	configureLogger(buf, "info")
+	configureLogger(buf, zerolog.InfoLevel)
 
 	Log.Info().Msg("test message")
 
@@ -40,7 +41,7 @@ func TestLogLevels(t *testing.T) {
 	for _, level := range levels {
 		t.Run(level.level, func(t *testing.T) {
 			buf := &bytes.Buffer{}
-			configureLogger(buf, level.level)
+			configureLogger(buf, level.expected)
 
 			Log.WithLevel(level.expected).Msg("test message")
 
@@ -53,6 +54,39 @@ func TestLogLevels(t *testing.T) {
 			assertLogField(t, logEntry, "lvl", level.level)
 			assertLogField(t, logEntry, "msg", "test message")
 			assertTimeField(t, logEntry, "t")
+		})
+	}
+}
+
+func TestInit(t *testing.T) {
+	tests := []struct {
+		name          string
+		envLogLevel   string
+		expectedLevel zerolog.Level
+		wantErr       bool
+	}{
+		{"Default log level", "", zerolog.InfoLevel, false},
+		{"Debug log level", "debug", zerolog.DebugLevel, false},
+		{"Info log level", "info", zerolog.InfoLevel, false},
+		{"Warn log level", "warn", zerolog.WarnLevel, false},
+		{"Error log level", "error", zerolog.ErrorLevel, false},
+		{"Invalid log level", "invalid", zerolog.InfoLevel, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("LOG_LEVEL", tt.envLogLevel)
+			defer os.Unsetenv("LOG_LEVEL")
+
+			err := Init()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && Log.GetLevel() != tt.expectedLevel {
+				t.Errorf("Init() set log level to %v, want %v", Log.GetLevel(), tt.expectedLevel)
+			}
 		})
 	}
 }

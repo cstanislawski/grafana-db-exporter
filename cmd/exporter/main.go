@@ -18,6 +18,11 @@ import (
 )
 
 func main() {
+	if err := logger.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -37,7 +42,6 @@ func run(ctx context.Context) error {
 	}
 	logger.Log.Debug().Interface("config", cfg).Msg("Configuration loaded")
 
-	logger.New(cfg.LogLevel)
 	logger.Log.Info().Msg("Starting Grafana DB exporter")
 
 	gitClient, err := setupGitClient(cfg)
