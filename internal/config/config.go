@@ -43,15 +43,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
-	if cfg.RepoClonePath == "" {
-		cfg.RepoClonePath = "./repo"
-		logger.Log.Warn().Str("RepoClonePath", cfg.RepoClonePath).Msg("Using default RepoClonePath")
-	}
-
-	if cfg.RepoSavePath == "" {
-		cfg.RepoSavePath = "dashboards"
-		logger.Log.Warn().Str("RepoSavePath", cfg.RepoSavePath).Msg("Using default RepoSavePath")
-	}
 	cfg.RepoSavePath = filepath.Join(cfg.RepoClonePath, cfg.RepoSavePath)
 	logger.Log.Debug().Str("FullRepoSavePath", cfg.RepoSavePath).Msg("Full RepoSavePath")
 
@@ -131,7 +122,6 @@ func parseEnv(cfg *Config) error {
 		}
 
 		envValue := os.Getenv(envName)
-		logger.Log.Debug().Str("EnvVar", envName).Str("Value", envValue).Msg("Parsing environment variable")
 
 		if envValue == "" {
 			if required {
