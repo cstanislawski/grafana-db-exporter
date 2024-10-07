@@ -44,7 +44,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to setup Git client: %w", err)
 	}
-	logger.Log.Debug().Msg("Git client set up successfully")
 
 	grafanaClient, err := grafana.New(cfg.GrafanaURL, cfg.GrafanaSaToken)
 	if err != nil {

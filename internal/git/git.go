@@ -72,6 +72,7 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 		}
 		auth.HostKeyCallback = hostKeyCallback
 	}
+	logger.Log.Debug().Msg("Git client set up successfully")
 
 	logger.Log.Debug().Str("repoClonePath", repoClonePath).Str("sshURL", sshURL).Msg("Cloning repository")
 	repo, err := git.PlainClone(repoClonePath, false, &git.CloneOptions{
