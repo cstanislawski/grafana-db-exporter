@@ -69,11 +69,15 @@ func TestClient_ListAndExportDashboards(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var err error
 				switch r.URL.Path {
 				case "/api/search":
-					w.Write([]byte(tt.searchResponse))
+					_, err = w.Write([]byte(tt.searchResponse))
 				case "/api/dashboards/uid/dash1", "/api/dashboards/uid/dash2":
-					w.Write([]byte(tt.dashResponse))
+					_, err = w.Write([]byte(tt.dashResponse))
+				}
+				if err != nil {
+					t.Errorf("Failed to write response: %v", err)
 				}
 			}))
 			defer server.Close()
