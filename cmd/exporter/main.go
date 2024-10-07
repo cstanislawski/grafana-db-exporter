@@ -31,13 +31,13 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	logger.New()
-	logger.Log.Info().Msg("Starting Grafana DB exporter")
-
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
+
+	logger.New(cfg.LogLevel)
+	logger.Log.Info().Msg("Starting Grafana DB exporter")
 
 	gitClient, err := setupGitClient(cfg)
 	if err != nil {
