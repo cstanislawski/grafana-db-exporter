@@ -42,7 +42,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
-	logger.Log.Debug().Interface("config", cfg).Msg("Configuration loaded")
 
 	gitClient, err := setupGitClient(cfg)
 	if err != nil {
