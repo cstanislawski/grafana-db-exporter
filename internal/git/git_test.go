@@ -140,7 +140,7 @@ func TestNew(t *testing.T) {
 			}
 
 			if client == nil {
-				t.Errorf("New() returned nil client")
+				t.Fatalf("New() returned nil client")
 			}
 
 			if client.auth == nil {

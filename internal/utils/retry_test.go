@@ -11,7 +11,10 @@ import (
 )
 
 func TestRetry(t *testing.T) {
-	logger.Init()
+	err := logger.Init()
+	if err != nil {
+		t.Fatalf("Failed to initialize logger: %v", err)
+	}
 
 	tests := []struct {
 		name           string
@@ -121,7 +124,10 @@ func TestRetry(t *testing.T) {
 }
 
 func TestRetryWithContext(t *testing.T) {
-	logger.Init()
+	err := logger.Init()
+	if err != nil {
+		t.Fatalf("Failed to initialize logger: %v", err)
+	}
 
 	cfg := &config.Config{
 		EnableRetries:  true,
@@ -154,13 +160,42 @@ func TestRetryWithContext(t *testing.T) {
 }
 
 func TestOperationError(t *testing.T) {
-	err := &OperationError{
-		Operation: "test operation",
-		Err:       errors.New("test error"),
+	tests := []struct {
+		name      string
+		operation string
+		err       error
+		expected  string
+	}{
+		{
+			name:      "Basic error",
+			operation: "test operation",
+			err:       errors.New("test error"),
+			expected:  "test operation failed: test error",
+		},
+		{
+			name:      "Empty operation",
+			operation: "",
+			err:       errors.New("error without operation"),
+			expected:  " failed: error without operation",
+		},
+		{
+			name:      "Nil error",
+			operation: "nil error operation",
+			err:       nil,
+			expected:  "nil error operation failed: <nil>",
+		},
 	}
 
-	expected := "test operation failed: test error"
-	if err.Error() != expected {
-		t.Errorf("OperationError.Error() = %v, want %v", err.Error(), expected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := &OperationError{
+				Operation: tt.operation,
+				Err:       tt.err,
+			}
+
+			if err.Error() != tt.expected {
+				t.Errorf("OperationError.Error() = %v, want %v", err.Error(), tt.expected)
+			}
+		})
 	}
 }
