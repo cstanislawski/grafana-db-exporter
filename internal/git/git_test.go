@@ -2,6 +2,13 @@ package git
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +21,56 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
+
+func generateSSHKey(t *testing.T, keyType string) ([]byte, error) {
+	t.Helper()
+
+	var privateKey interface{}
+	var err error
+
+	switch keyType {
+	case "rsa":
+		privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	case "ecdsa":
+		privateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	case "ed25519":
+		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
+	default:
+		return nil, fmt.Errorf("unsupported key type: %s", keyType)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate %s key: %w", keyType, err)
+	}
+
+	var pemData []byte
+
+	switch k := privateKey.(type) {
+	case *rsa.PrivateKey:
+		pemData = pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(k),
+		})
+	case *ecdsa.PrivateKey:
+		b, err := x509.MarshalECPrivateKey(k)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ECDSA key: %w", err)
+		}
+		pemData = pem.EncodeToMemory(&pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: b,
+		})
+	case ed25519.PrivateKey:
+		pemData, err = marshalOpenSSHED25519PrivateKey(k)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Ed25519 key: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported key type: %T", k)
+	}
+
+	return pemData, nil
+}
 
 func TestNew(t *testing.T) {
 	tempDir := t.TempDir()

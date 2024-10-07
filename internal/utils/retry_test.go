@@ -11,7 +11,7 @@ import (
 )
 
 func TestRetry(t *testing.T) {
-	logger.New()
+	logger.Init()
 
 	tests := []struct {
 		name           string
@@ -121,7 +121,7 @@ func TestRetry(t *testing.T) {
 }
 
 func TestRetryWithContext(t *testing.T) {
-	logger.New()
+	logger.Init()
 
 	cfg := &config.Config{
 		EnableRetries:  true,

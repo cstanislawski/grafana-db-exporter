@@ -18,6 +18,13 @@ import (
 )
 
 func main() {
+	if err := logger.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+
+	logger.Log.Info().Msg("Starting Grafana DB exporter")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -31,9 +38,6 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	logger.New()
-	logger.Log.Info().Msg("Starting Grafana DB exporter")
-
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
@@ -53,7 +57,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new branch: %w", err)
 	}
-	logger.Log.Info().Str("branch", branchName).Msg("Created new git branch")
 
 	dashboards, err := utils.Retry(ctx, cfg, "fetch dashboards", func() ([]grafana.Dashboard, error) {
 		return fetchDashboards(ctx, grafanaClient)
@@ -69,6 +72,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	logger.Log.Debug().Int("count", savedCount).Msg("Saved dashboards")
 
 	if savedCount > 0 {
 		_, err = utils.Retry(ctx, cfg, "commit and push changes", func() (interface{}, error) {
@@ -90,15 +94,18 @@ func setupGitClient(cfg *config.Config) (*git.Client, error) {
 }
 
 func createNewBranch(ctx context.Context, gitClient *git.Client, cfg *config.Config) (string, error) {
+	logger.Log.Debug().Str("baseBranch", cfg.BaseBranch).Str("branchPrefix", cfg.BranchPrefix).Msg("Creating new branch")
 	branchName := fmt.Sprintf("%s%s", cfg.BranchPrefix, time.Now().Format("20060102150405"))
 	return gitClient.CheckoutNewBranch(ctx, cfg.BaseBranch, branchName)
 }
 
 func fetchDashboards(ctx context.Context, grafanaClient *grafana.Client) ([]grafana.Dashboard, error) {
+	logger.Log.Debug().Msg("Fetching dashboards from Grafana")
 	return grafanaClient.ListAndExportDashboards(ctx)
 }
 
 func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, savePath string) (int, error) {
+	logger.Log.Debug().Int("dashboardCount", len(dashboards)).Str("savePath", savePath).Msg("Saving dashboards")
 	savedCount := 0
 	for _, dashboard := range dashboards {
 		select {
@@ -109,6 +116,7 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, savePat
 				return savedCount, fmt.Errorf("failed to save dashboard %s: %w", dashboard.UID, err)
 			}
 			savedCount++
+			logger.Log.Debug().Str("dashboardUID", dashboard.UID).Msg("Dashboard saved")
 		}
 	}
 	return savedCount, nil
@@ -116,6 +124,7 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, savePat
 
 func saveDashboard(dashboard grafana.Dashboard, savePath string) error {
 	filePath := filepath.Join(savePath, fmt.Sprintf("%s.json", dashboard.UID))
+	logger.Log.Debug().Str("filePath", filePath).Msg("Saving dashboard to file")
 
 	data, err := json.MarshalIndent(dashboard.Data, "", "  ")
 	if err != nil {
@@ -130,10 +139,12 @@ func saveDashboard(dashboard grafana.Dashboard, savePath string) error {
 }
 
 func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
+	logger.Log.Debug().Str("branch", branchName).Msg("Committing changes")
 	if err := gitClient.CommitAll(ctx, cfg.SSHUser, cfg.SSHEmail); err != nil {
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
+	logger.Log.Debug().Str("branch", branchName).Msg("Pushing changes")
 	if err := gitClient.Push(ctx, branchName); err != nil {
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
@@ -145,7 +156,8 @@ func setupSignalHandler(cancel context.CancelFunc) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		<-sigCh
+		sig := <-sigCh
+		logger.Log.Debug().Str("signal", sig.String()).Msg("Received termination signal")
 		cancel()
 	}()
 }
