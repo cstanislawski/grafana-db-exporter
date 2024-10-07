@@ -23,6 +23,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	logger.Log.Info().Msg("Starting Grafana DB exporter")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -41,8 +43,6 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 	logger.Log.Debug().Interface("config", cfg).Msg("Configuration loaded")
-
-	logger.Log.Info().Msg("Starting Grafana DB exporter")
 
 	gitClient, err := setupGitClient(cfg)
 	if err != nil {
