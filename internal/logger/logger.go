@@ -10,19 +10,20 @@ import (
 
 var Log zerolog.Logger
 
-func New() *zerolog.Logger {
+func New(logLevel string) *zerolog.Logger {
+	configureLogger(os.Stdout, logLevel)
 	return &Log
 }
 
-func init() {
-	configureLogger(os.Stdout)
-}
+func configureLogger(output io.Writer, logLevel string) {
+	level, err := zerolog.ParseLevel(logLevel)
+	if err != nil {
+		level = zerolog.InfoLevel
+	}
 
-func configureLogger(output io.Writer) {
-	Log = zerolog.New(output).With().Timestamp().Logger()
+	Log = zerolog.New(output).With().Timestamp().Logger().Level(level)
 
 	zerolog.TimeFieldFormat = time.RFC3339
-
 	zerolog.TimestampFieldName = "t"
 	zerolog.LevelFieldName = "lvl"
 	zerolog.MessageFieldName = "msg"
