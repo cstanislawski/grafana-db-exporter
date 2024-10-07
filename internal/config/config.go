@@ -30,6 +30,8 @@ type Config struct {
 	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
 	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
 	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
+
+	LogLevel string `env:"LOG_LEVEL,default=info"`
 }
 
 func Load() (*Config, error) {
@@ -46,6 +48,8 @@ func Load() (*Config, error) {
 		cfg.RepoSavePath = "dashboards"
 	}
 	cfg.RepoSavePath = filepath.Join(cfg.RepoClonePath, cfg.RepoSavePath)
+
+	cfg.LogLevel = strings.ToLower(cfg.LogLevel)
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
@@ -67,6 +71,18 @@ func (c *Config) Validate() error {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
 			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
 		}
+	}
+
+	validLevels := []string{"debug", "info", "warn", "error", "fatal", "panic"}
+	validLevel := false
+	for _, level := range validLevels {
+		if c.LogLevel == level {
+			validLevel = true
+			break
+		}
+	}
+	if !validLevel {
+		return fmt.Errorf("invalid log level: %s", c.LogLevel)
 	}
 
 	return nil
