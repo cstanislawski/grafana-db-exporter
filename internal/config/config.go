@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"grafana-db-exporter/internal/logger"
 )
 
 type Config struct {
@@ -35,6 +37,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	logger.Log.Debug().Msg("Starting configuration loading process")
 	cfg := &Config{}
 	if err := parseEnv(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
@@ -42,37 +45,50 @@ func Load() (*Config, error) {
 
 	if cfg.RepoClonePath == "" {
 		cfg.RepoClonePath = "./repo"
+		logger.Log.Warn().Str("RepoClonePath", cfg.RepoClonePath).Msg("Using default RepoClonePath")
 	}
 
 	if cfg.RepoSavePath == "" {
 		cfg.RepoSavePath = "dashboards"
+		logger.Log.Warn().Str("RepoSavePath", cfg.RepoSavePath).Msg("Using default RepoSavePath")
 	}
 	cfg.RepoSavePath = filepath.Join(cfg.RepoClonePath, cfg.RepoSavePath)
+	logger.Log.Debug().Str("FullRepoSavePath", cfg.RepoSavePath).Msg("Full RepoSavePath")
 
 	cfg.LogLevel = strings.ToLower(cfg.LogLevel)
+	logger.Log.Debug().Str("LogLevel", cfg.LogLevel).Msg("Set LogLevel")
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
+	logger.Log.Debug().Msg("Configuration validation completed successfully")
 
+	logger.Log.Debug().Msg("Configuration loading process completed")
 	return cfg, nil
 }
 
 func (c *Config) Validate() error {
+	logger.Log.Debug().Msg("Validating Grafana URL")
 	if _, err := url.ParseRequestURI(c.GrafanaURL); err != nil {
 		return fmt.Errorf("invalid Grafana URL: %w", err)
 	}
 
+	logger.Log.Debug().Str("SSHKeyPath", c.SSHKey).Msg("Checking SSH key file")
 	if _, err := os.Stat(c.SSHKey); os.IsNotExist(err) {
 		return fmt.Errorf("SSH key file does not exist: %s", c.SSHKey)
 	}
 
+	logger.Log.Debug().
+		Bool("SshAcceptUnknownHosts", c.SshAcceptUnknownHosts).
+		Str("SshKnownHostsPath", c.SshKnownHostsPath).
+		Msg("Checking SSH known hosts configuration")
 	if !c.SshAcceptUnknownHosts && c.SshKnownHostsPath != "" {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
 			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
 		}
 	}
 
+	logger.Log.Debug().Str("LogLevel", c.LogLevel).Msg("Validating log level")
 	validLevels := []string{"debug", "info", "warn", "error", "fatal", "panic"}
 	validLevel := false
 	for _, level := range validLevels {
@@ -115,16 +131,20 @@ func parseEnv(cfg *Config) error {
 		}
 
 		envValue := os.Getenv(envName)
+		logger.Log.Debug().Str("EnvVar", envName).Str("Value", envValue).Msg("Parsing environment variable")
+
 		if envValue == "" {
 			if required {
 				return fmt.Errorf("required environment variable %s is not set", envName)
 			}
 			envValue = defaultValue
+			logger.Log.Warn().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Using default value")
 		}
 
 		if err := setField(value, envValue); err != nil {
 			return fmt.Errorf("failed to set field %s: %w", field.Name, err)
 		}
+		logger.Log.Debug().Str("Field", field.Name).Str("Value", envValue).Msg("Field set successfully")
 	}
 
 	return nil
