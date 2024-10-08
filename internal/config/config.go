@@ -27,7 +27,8 @@ type Config struct {
 	SshAcceptUnknownHosts bool   `env:"SSH_ACCEPT_UNKNOWN_HOSTS,default=false"`
 	SshKnownHostsPath     string `env:"SSH_KNOWN_HOSTS_PATH"`
 
-	RepoClonePath string `env:"REPO_CLONE_PATH,default=./repo/"`
+	RepoClonePath      string `env:"REPO_CLONE_PATH,default=./repo/"`
+	SynchronizeDeleted bool   `env:"SYNCHRONIZE_DELETED,default=true"`
 
 	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
 	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
