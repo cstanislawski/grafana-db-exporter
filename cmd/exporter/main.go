@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -66,6 +67,12 @@ func run(ctx context.Context) error {
 	}
 	logger.Log.Info().Int("count", len(dashboards)).Msg("Fetched dashboards")
 
+	if cfg.DeleteMissing {
+		if err := deleteMissingDashboards(cfg.RepoSavePath, dashboards); err != nil {
+			return fmt.Errorf("failed to delete missing dashboards: %w", err)
+		}
+	}
+
 	savedCount, err := utils.Retry(ctx, cfg, "save dashboards", func() (int, error) {
 		return saveDashboards(ctx, dashboards, cfg.RepoSavePath)
 	})
@@ -87,6 +94,49 @@ func run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Dashboard) error {
+	existingFiles, err := listDashboardFiles(repoSavePath)
+	if err != nil {
+		return fmt.Errorf("failed to list existing dashboard files: %w", err)
+	}
+
+	fetchedUIDs := make(map[string]struct{})
+	for _, dashboard := range fetchedDashboards {
+		fetchedUIDs[dashboard.UID] = struct{}{}
+	}
+
+	for _, file := range existingFiles {
+		fileUID := extractUIDFromFilename(file)
+		if _, exists := fetchedUIDs[fileUID]; !exists {
+			if err := os.Remove(filepath.Join(repoSavePath, file)); err != nil {
+				return fmt.Errorf("failed to delete file %s: %w", file, err)
+			}
+			logger.Log.Info().Str("file", file).Msg("Deleted missing dashboard file")
+		}
+	}
+
+	return nil
+}
+
+func listDashboardFiles(dir string) ([]string, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var dashboardFiles []string
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
+			dashboardFiles = append(dashboardFiles, file.Name())
+		}
+	}
+	return dashboardFiles, nil
+}
+
+func extractUIDFromFilename(filename string) string {
+	return strings.TrimSuffix(filename, ".json")
 }
 
 func setupGitClient(cfg *config.Config) (*git.Client, error) {
