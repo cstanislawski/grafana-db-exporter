@@ -115,6 +115,8 @@ spec:
           restartPolicy: OnFailure
 ```
 
+### Limitations
+
 #### Multiple Grafana organizations / instances
 
 If you need to export dashboards from multiple Grafana organizations, you will need to run multiple instances of `grafana-db-exporter` with different `GRAFANA_SA_TOKEN` and different `GRAFANA_URL` in case of multiple instances. The token is the only way to authenticate with the Grafana API, and it is also the token that represents the organization that the service account belongs to, limiting the access to the dashboards to the ones that the organization has access to.
