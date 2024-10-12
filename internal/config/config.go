@@ -28,6 +28,7 @@ type Config struct {
 	SshKnownHostsPath     string `env:"SSH_KNOWN_HOSTS_PATH"`
 
 	RepoClonePath string `env:"REPO_CLONE_PATH,default=./repo/"`
+	DeleteMissing bool   `env:"DELETE_MISSING,default=true"`
 
 	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
 	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
