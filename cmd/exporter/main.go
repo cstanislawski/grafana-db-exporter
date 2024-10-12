@@ -67,6 +67,10 @@ func run(ctx context.Context) error {
 	}
 	logger.Log.Info().Int("count", len(dashboards)).Msg("Fetched dashboards")
 
+	if cfg.AddMissingNewlines {
+		dashboards = addMissingNewlines(dashboards)
+	}
+
 	if cfg.DeleteMissing {
 		if err := deleteMissingDashboards(cfg.RepoSavePath, dashboards); err != nil {
 			return fmt.Errorf("failed to delete missing dashboards: %w", err)
@@ -186,6 +190,26 @@ func saveDashboard(dashboard grafana.Dashboard, savePath string) error {
 	}
 
 	return nil
+}
+
+func addMissingNewlines(dashboards []grafana.Dashboard) []grafana.Dashboard {
+	for i, dashboard := range dashboards {
+		jsonData, err := json.MarshalIndent(dashboard.Data, "", "  ")
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("dashboardUID", dashboard.UID).Msg("Failed to marshal dashboard data, skipping newline addition")
+			continue
+		}
+
+		if !strings.HasSuffix(string(jsonData), "\n") {
+			jsonData = append(jsonData, '\n')
+			dashboard.Data = json.RawMessage(jsonData)
+			dashboards[i] = dashboard
+			logger.Log.Debug().Str("dashboardUID", dashboard.UID).Msg("Added newline to dashboard")
+		} else {
+			logger.Log.Debug().Str("dashboardUID", dashboard.UID).Msg("Dashboard already contains a newline, skipping newline addition")
+		}
+	}
+	return dashboards
 }
 
 func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
