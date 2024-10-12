@@ -33,6 +33,8 @@ type Config struct {
 	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
 	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
 	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
+
+	AddMissingNewlines bool `env:"ADD_MISSING_NEWLINES,default=true"`
 }
 
 func Load() (*Config, error) {
