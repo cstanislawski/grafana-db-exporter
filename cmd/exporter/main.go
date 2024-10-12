@@ -67,10 +67,6 @@ func run(ctx context.Context) error {
 	}
 	logger.Log.Info().Int("count", len(dashboards)).Msg("Fetched dashboards")
 
-	if cfg.AddMissingNewlines {
-		dashboards = addMissingNewlines(dashboards)
-	}
-
 	if cfg.DeleteMissing {
 		if err := deleteMissingDashboards(cfg.RepoSavePath, dashboards); err != nil {
 			return fmt.Errorf("failed to delete missing dashboards: %w", err)
@@ -78,7 +74,7 @@ func run(ctx context.Context) error {
 	}
 
 	savedCount, err := utils.Retry(ctx, cfg, "save dashboards", func() (int, error) {
-		return saveDashboards(ctx, dashboards, cfg.RepoSavePath)
+		return saveDashboards(ctx, dashboards, cfg)
 	})
 	if err != nil {
 		return err
@@ -158,15 +154,15 @@ func fetchDashboards(ctx context.Context, grafanaClient *grafana.Client) ([]graf
 	return grafanaClient.ListAndExportDashboards(ctx)
 }
 
-func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, savePath string) (int, error) {
-	logger.Log.Debug().Int("dashboardCount", len(dashboards)).Str("savePath", savePath).Msg("Saving dashboards")
+func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, cfg *config.Config) (int, error) {
+	logger.Log.Debug().Int("dashboardCount", len(dashboards)).Str("savePath", cfg.RepoSavePath).Msg("Saving dashboards")
 	savedCount := 0
 	for _, dashboard := range dashboards {
 		select {
 		case <-ctx.Done():
 			return savedCount, ctx.Err()
 		default:
-			if err := saveDashboard(dashboard, savePath); err != nil {
+			if err := saveDashboard(dashboard, cfg); err != nil {
 				return savedCount, fmt.Errorf("failed to save dashboard %s: %w", dashboard.UID, err)
 			}
 			savedCount++
@@ -176,8 +172,8 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, savePat
 	return savedCount, nil
 }
 
-func saveDashboard(dashboard grafana.Dashboard, savePath string) error {
-	filePath := filepath.Join(savePath, fmt.Sprintf("%s.json", dashboard.UID))
+func saveDashboard(dashboard grafana.Dashboard, cfg *config.Config) error {
+	filePath := filepath.Join(cfg.RepoSavePath, fmt.Sprintf("%s.json", dashboard.UID))
 	logger.Log.Debug().Str("filePath", filePath).Msg("Saving dashboard to file")
 
 	data, err := json.MarshalIndent(dashboard.Data, "", "  ")
@@ -185,31 +181,15 @@ func saveDashboard(dashboard grafana.Dashboard, savePath string) error {
 		return fmt.Errorf("failed to marshal dashboard data: %w", err)
 	}
 
+	if cfg.AddMissingNewlines {
+		data = append(data, '\n')
+	}
+
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write dashboard file: %w", err)
 	}
 
 	return nil
-}
-
-func addMissingNewlines(dashboards []grafana.Dashboard) []grafana.Dashboard {
-	for i, dashboard := range dashboards {
-		jsonData, err := json.MarshalIndent(dashboard.Data, "", "  ")
-		if err != nil {
-			logger.Log.Warn().Err(err).Str("dashboardUID", dashboard.UID).Msg("Failed to marshal dashboard data, skipping newline addition")
-			continue
-		}
-
-		if !strings.HasSuffix(string(jsonData), "\n") {
-			jsonData = append(jsonData, '\n')
-			dashboard.Data = json.RawMessage(jsonData)
-			dashboards[i] = dashboard
-			logger.Log.Debug().Str("dashboardUID", dashboard.UID).Msg("Added newline to dashboard")
-		} else {
-			logger.Log.Debug().Str("dashboardUID", dashboard.UID).Msg("Dashboard already contains a newline, skipping newline addition")
-		}
-	}
-	return dashboards
 }
 
 func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
