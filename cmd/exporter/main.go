@@ -182,7 +182,9 @@ func saveDashboard(dashboard grafana.Dashboard, cfg *config.Config) error {
 	}
 
 	if cfg.AddMissingNewlines {
-		data = append(data, '\n')
+		if len(data) > 0 && data[len(data)-1] != '\n' {
+			data = append(data, '\n')
+		}
 	}
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
