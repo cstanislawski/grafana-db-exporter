@@ -35,6 +35,7 @@ type Config struct {
 	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
 
 	AddMissingNewlines bool `env:"ADD_MISSING_NEWLINES,default=true"`
+	DryRun             bool `env:"DRY_RUN,default=false"`
 }
 
 func Load() (*Config, error) {
@@ -51,6 +52,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 	logger.Log.Debug().Msg("Configuration validation completed successfully")
+
+	logger.Log.Debug().Bool("DryRun", cfg.DryRun).Msg("Dry run mode")
 
 	logger.Log.Debug().Msg("Configuration loading process completed")
 	return cfg, nil
