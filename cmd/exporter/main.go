@@ -200,9 +200,13 @@ func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *confi
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	logger.Log.Debug().Str("branch", branchName).Msg("Pushing changes")
-	if err := gitClient.Push(ctx, branchName); err != nil {
-		return fmt.Errorf("failed to push changes: %w", err)
+	if !cfg.DryRun {
+		logger.Log.Debug().Str("branch", branchName).Msg("Pushing changes")
+		if err := gitClient.Push(ctx, branchName); err != nil {
+			return fmt.Errorf("failed to push changes: %w", err)
+		}
+	} else {
+		logger.Log.Info().Msg("Dry run mode: Changes committed but not pushed")
 	}
 
 	return nil
