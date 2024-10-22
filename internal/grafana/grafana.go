@@ -102,8 +102,8 @@ func SanitizeFolderPath(path string) string {
 	return strings.TrimSpace(sanitized)
 }
 
-func GetDashboardPath(basePath string, dashboard Dashboard) string {
-	if dashboard.FolderID == 0 {
+func GetDashboardPath(basePath string, dashboard Dashboard, ignoreFolderStructure bool) string {
+	if ignoreFolderStructure || dashboard.FolderID == 0 {
 		return filepath.Join(basePath, fmt.Sprintf("%s.json", dashboard.UID))
 	}
 

@@ -176,10 +176,11 @@ func TestSanitizeFolderPath(t *testing.T) {
 
 func TestGetDashboardPath(t *testing.T) {
 	tests := []struct {
-		name      string
-		basePath  string
-		dashboard Dashboard
-		expected  string
+		name                  string
+		basePath              string
+		dashboard             Dashboard
+		ignoreFolderStructure bool
+		expected              string
 	}{
 		{
 			name:     "Root dashboard",
@@ -188,7 +189,8 @@ func TestGetDashboardPath(t *testing.T) {
 				UID:      "dash1",
 				FolderID: 0,
 			},
-			expected: filepath.Join("/base/path", "dash1.json"),
+			ignoreFolderStructure: false,
+			expected:              filepath.Join("/base/path", "dash1.json"),
 		},
 		{
 			name:     "Foldered dashboard",
@@ -198,7 +200,19 @@ func TestGetDashboardPath(t *testing.T) {
 				FolderID:    1,
 				FolderTitle: "Test Folder",
 			},
-			expected: filepath.Join("/base/path", "Test Folder", "dash2.json"),
+			ignoreFolderStructure: false,
+			expected:              filepath.Join("/base/path", "Test Folder", "dash2.json"),
+		},
+		{
+			name:     "Foldered dashboard with ignore structure",
+			basePath: "/base/path",
+			dashboard: Dashboard{
+				UID:         "dash2",
+				FolderID:    1,
+				FolderTitle: "Test Folder",
+			},
+			ignoreFolderStructure: true,
+			expected:              filepath.Join("/base/path", "dash2.json"),
 		},
 		{
 			name:     "Dashboard with sanitized folder path",
@@ -208,13 +222,25 @@ func TestGetDashboardPath(t *testing.T) {
 				FolderID:    1,
 				FolderTitle: "Test/Folder:with*invalid?chars",
 			},
-			expected: filepath.Join("/base/path", "Test-Folder-with-invalid-chars", "dash3.json"),
+			ignoreFolderStructure: false,
+			expected:              filepath.Join("/base/path", "Test-Folder-with-invalid-chars", "dash3.json"),
+		},
+		{
+			name:     "Dashboard with sanitized folder path and ignore structure",
+			basePath: "/base/path",
+			dashboard: Dashboard{
+				UID:         "dash3",
+				FolderID:    1,
+				FolderTitle: "Test/Folder:with*invalid?chars",
+			},
+			ignoreFolderStructure: true,
+			expected:              filepath.Join("/base/path", "dash3.json"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetDashboardPath(tt.basePath, tt.dashboard)
+			result := GetDashboardPath(tt.basePath, tt.dashboard, tt.ignoreFolderStructure)
 			if result != tt.expected {
 				t.Errorf("GetDashboardPath() = %v, want %v", result, tt.expected)
 			}

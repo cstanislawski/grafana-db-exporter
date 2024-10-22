@@ -69,7 +69,7 @@ func run(ctx context.Context) error {
 	logger.Log.Info().Int("count", len(dashboards)).Msg("Fetched dashboards")
 
 	if cfg.DeleteMissing {
-		if err := deleteMissingDashboards(cfg.RepoSavePath, dashboards); err != nil {
+		if err := deleteMissingDashboards(cfg.RepoSavePath, dashboards, cfg); err != nil {
 			return fmt.Errorf("failed to delete missing dashboards: %w", err)
 		}
 	}
@@ -97,7 +97,7 @@ func run(ctx context.Context) error {
 	return nil
 }
 
-func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Dashboard) error {
+func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Dashboard, cfg *config.Config) error {
 	existingFiles := make(map[string]bool)
 	fetchedPaths := make(map[string]bool)
 
@@ -121,7 +121,7 @@ func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Da
 	for _, dashboard := range fetchedDashboards {
 		relPath, err := filepath.Rel(
 			repoSavePath,
-			grafana.GetDashboardPath(repoSavePath, dashboard),
+			grafana.GetDashboardPath(repoSavePath, dashboard, cfg.IgnoreFolderStructure),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to get relative path: %w", err)
@@ -137,6 +137,10 @@ func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Da
 			}
 			logger.Log.Info().Str("file", existingPath).Msg("Deleted missing dashboard file")
 		}
+	}
+
+	if cfg.IgnoreFolderStructure {
+		return nil
 	}
 
 	err = filepath.Walk(repoSavePath, func(path string, info os.FileInfo, err error) error {
@@ -200,6 +204,7 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, cfg *co
 	logger.Log.Debug().
 		Int("dashboardCount", len(dashboards)).
 		Str("savePath", cfg.RepoSavePath).
+		Bool("ignoreFolderStructure", cfg.IgnoreFolderStructure).
 		Msg("Saving dashboards")
 
 	savedCount := 0
@@ -208,28 +213,28 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, cfg *co
 		case <-ctx.Done():
 			return savedCount, ctx.Err()
 		default:
-			fullPath := grafana.GetDashboardPath(cfg.RepoSavePath, dashboard)
+			fullPath := grafana.GetDashboardPath(cfg.RepoSavePath, dashboard, cfg.IgnoreFolderStructure)
 			dirPath := filepath.Dir(fullPath)
 
 			if err := os.MkdirAll(dirPath, 0755); err != nil {
 				return savedCount, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
 
-			if err := saveDashboard(dashboard, cfg); err != nil {
+			if err := saveDashboard(dashboard, fullPath, cfg); err != nil {
 				return savedCount, fmt.Errorf("failed to save dashboard %s: %w", dashboard.UID, err)
 			}
 			savedCount++
 			logger.Log.Debug().
 				Str("dashboardUID", dashboard.UID).
 				Str("folder", dashboard.FolderTitle).
+				Bool("ignoredFolderStructure", cfg.IgnoreFolderStructure).
 				Msg("Dashboard saved")
 		}
 	}
 	return savedCount, nil
 }
 
-func saveDashboard(dashboard grafana.Dashboard, cfg *config.Config) error {
-	filePath := grafana.GetDashboardPath(cfg.RepoSavePath, dashboard)
+func saveDashboard(dashboard grafana.Dashboard, filePath string, cfg *config.Config) error {
 	logger.Log.Debug().Str("filePath", filePath).Msg("Saving dashboard to file")
 
 	data, err := json.MarshalIndent(dashboard.Data, "", "  ")

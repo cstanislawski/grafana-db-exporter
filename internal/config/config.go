@@ -34,8 +34,9 @@ type Config struct {
 	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
 	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
 
-	AddMissingNewlines bool `env:"ADD_MISSING_NEWLINES,default=true"`
-	DryRun             bool `env:"DRY_RUN,default=false"`
+	AddMissingNewlines    bool `env:"ADD_MISSING_NEWLINES,default=true"`
+	DryRun                bool `env:"DRY_RUN,default=false"`
+	IgnoreFolderStructure bool `env:"IGNORE_FOLDER_STRUCTURE,default=false"`
 }
 
 func Load() (*Config, error) {
