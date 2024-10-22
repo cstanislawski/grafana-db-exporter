@@ -32,6 +32,7 @@ Optional:
 - `DELETE_MISSING` - Whether to delete the dashboards from the target directory if they were not fetched (i.e. missing) from the Grafana instance, bool, defaults to `true`
 - `ADD_MISSING_NEWLINES` - Whether to add newlines to the end of the fetched dashboards, bool, defaults to `true`
 - `DRY_RUN` - Whether to run in dry run mode (run up to the point of committing the changes, but don't push), bool, defaults to `false`
+- `IGNORE_FOLDER_STRUCTURE` - Whether to ignore the Grafana folder structure and save all dashboards directly in `REPO_SAVE_PATH`, bool, defaults to `false`
 
 ### Examples
 
