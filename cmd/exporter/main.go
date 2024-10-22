@@ -139,7 +139,6 @@ func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Da
 		}
 	}
 
-	// Clean up empty directories
 	err = filepath.Walk(repoSavePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
