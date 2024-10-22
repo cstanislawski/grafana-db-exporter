@@ -77,33 +77,6 @@ The `grafana-db-exporter` tool is designed to be part of your CI/CD pipeline. He
    - Dashboards are deployed to production Grafana
    - State is maintained in Terraform
 
-Example CI/CD Pipeline:
-
-```yaml
-stages:
-  - export
-  - plan
-  - apply
-
-export_dashboards:
-  stage: export
-  script:
-    - grafana-db-exporter  # Exports changes to git
-
-terraform_plan:
-  stage: plan
-  script:
-    - terraform init
-    - terraform plan  # Shows dashboard changes
-
-terraform_apply:
-  stage: apply
-  script:
-    - terraform apply -auto-approve
-  only:
-    - main  # Only apply on main branch
-```
-
 ## Best Practices
 
 1. **Version Control**:
