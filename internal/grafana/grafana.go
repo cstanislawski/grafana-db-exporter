@@ -64,7 +64,7 @@ func (gc *Client) ListAndExportDashboards(ctx context.Context) ([]Dashboard, err
 			return nil, fmt.Errorf("failed to get dashboard by UID: %w", err)
 		}
 
-		folderTitle := "General"
+		var folderTitle string
 		if link.FolderID != 0 {
 			var ok bool
 			folderTitle, ok = folderMap[link.FolderID]
@@ -103,6 +103,10 @@ func SanitizeFolderPath(path string) string {
 }
 
 func GetDashboardPath(basePath string, dashboard Dashboard) string {
+	if dashboard.FolderID == 0 {
+		return filepath.Join(basePath, fmt.Sprintf("%s.json", dashboard.UID))
+	}
+
 	folderPath := SanitizeFolderPath(dashboard.FolderTitle)
 	return filepath.Join(basePath, folderPath, fmt.Sprintf("%s.json", dashboard.UID))
 }
