@@ -181,25 +181,6 @@ func isDirEmpty(path string) (bool, error) {
 	return false, err
 }
 
-func listDashboardFiles(dir string) ([]string, error) {
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	var dashboardFiles []string
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
-			dashboardFiles = append(dashboardFiles, file.Name())
-		}
-	}
-	return dashboardFiles, nil
-}
-
-func extractUIDFromFilename(filename string) string {
-	return strings.TrimSuffix(filename, ".json")
-}
-
 func setupGitClient(cfg *config.Config) (*git.Client, error) {
 	return git.New(cfg.RepoClonePath, cfg.SSHURL, cfg.SSHKey, cfg.SshKeyPassword, cfg.SshKnownHostsPath, cfg.SshAcceptUnknownHosts)
 }
