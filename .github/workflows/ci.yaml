@@ -7,29 +7,12 @@ concurrency:
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "examples/**"
+      - "LICENSE.md"
 
 jobs:
-  build:
-    name: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/grafana-db-exporter/Dockerfile
-          push: false
-  test:
-    name: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.23.2
-      - name: Run go test
-        run: go test ./...
   lint:
     name: lint
     runs-on: ubuntu-latest
@@ -43,3 +26,24 @@ jobs:
         with:
           version: v1.61.0
           args: --timeout 5m
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.2
+      - name: Run go test
+        run: go test ./...
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/grafana-db-exporter/Dockerfile
+          push: false
