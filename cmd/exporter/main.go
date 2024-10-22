@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -97,27 +98,88 @@ func run(ctx context.Context) error {
 }
 
 func deleteMissingDashboards(repoSavePath string, fetchedDashboards []grafana.Dashboard) error {
-	existingFiles, err := listDashboardFiles(repoSavePath)
-	if err != nil {
-		return fmt.Errorf("failed to list existing dashboard files: %w", err)
-	}
+	existingFiles := make(map[string]bool)
+	fetchedPaths := make(map[string]bool)
 
-	fetchedUIDs := make(map[string]struct{})
-	for _, dashboard := range fetchedDashboards {
-		fetchedUIDs[dashboard.UID] = struct{}{}
-	}
-
-	for _, file := range existingFiles {
-		fileUID := extractUIDFromFilename(file)
-		if _, exists := fetchedUIDs[fileUID]; !exists {
-			if err := os.Remove(filepath.Join(repoSavePath, file)); err != nil {
-				return fmt.Errorf("failed to delete file %s: %w", file, err)
+	err := filepath.Walk(repoSavePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".json") {
+			relPath, err := filepath.Rel(repoSavePath, path)
+			if err != nil {
+				return fmt.Errorf("failed to get relative path: %w", err)
 			}
-			logger.Log.Info().Str("file", file).Msg("Deleted missing dashboard file")
+			existingFiles[relPath] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to walk repository directory: %w", err)
+	}
+
+	for _, dashboard := range fetchedDashboards {
+		relPath, err := filepath.Rel(
+			repoSavePath,
+			grafana.GetDashboardPath(repoSavePath, dashboard),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %w", err)
+		}
+		fetchedPaths[relPath] = true
+	}
+
+	for existingPath := range existingFiles {
+		if !fetchedPaths[existingPath] {
+			fullPath := filepath.Join(repoSavePath, existingPath)
+			if err := os.Remove(fullPath); err != nil {
+				return fmt.Errorf("failed to delete file %s: %w", existingPath, err)
+			}
+			logger.Log.Info().Str("file", existingPath).Msg("Deleted missing dashboard file")
 		}
 	}
 
+	// Clean up empty directories
+	err = filepath.Walk(repoSavePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == repoSavePath {
+			return nil
+		}
+		if info.IsDir() {
+			empty, err := isDirEmpty(path)
+			if err != nil {
+				return fmt.Errorf("failed to check if directory is empty: %w", err)
+			}
+			if empty {
+				if err := os.Remove(path); err != nil {
+					return fmt.Errorf("failed to remove empty directory %s: %w", path, err)
+				}
+				logger.Log.Info().Str("directory", path).Msg("Removed empty directory")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clean up empty directories: %w", err)
+	}
+
 	return nil
+}
+
+func isDirEmpty(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
 }
 
 func listDashboardFiles(dir string) ([]string, error) {
@@ -155,25 +217,39 @@ func fetchDashboards(ctx context.Context, grafanaClient *grafana.Client) ([]graf
 }
 
 func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, cfg *config.Config) (int, error) {
-	logger.Log.Debug().Int("dashboardCount", len(dashboards)).Str("savePath", cfg.RepoSavePath).Msg("Saving dashboards")
+	logger.Log.Debug().
+		Int("dashboardCount", len(dashboards)).
+		Str("savePath", cfg.RepoSavePath).
+		Msg("Saving dashboards")
+
 	savedCount := 0
 	for _, dashboard := range dashboards {
 		select {
 		case <-ctx.Done():
 			return savedCount, ctx.Err()
 		default:
+			fullPath := grafana.GetDashboardPath(cfg.RepoSavePath, dashboard)
+			dirPath := filepath.Dir(fullPath)
+
+			if err := os.MkdirAll(dirPath, 0755); err != nil {
+				return savedCount, fmt.Errorf("failed to create directory %s: %w", dirPath, err)
+			}
+
 			if err := saveDashboard(dashboard, cfg); err != nil {
 				return savedCount, fmt.Errorf("failed to save dashboard %s: %w", dashboard.UID, err)
 			}
 			savedCount++
-			logger.Log.Debug().Str("dashboardUID", dashboard.UID).Msg("Dashboard saved")
+			logger.Log.Debug().
+				Str("dashboardUID", dashboard.UID).
+				Str("folder", dashboard.FolderTitle).
+				Msg("Dashboard saved")
 		}
 	}
 	return savedCount, nil
 }
 
 func saveDashboard(dashboard grafana.Dashboard, cfg *config.Config) error {
-	filePath := filepath.Join(cfg.RepoSavePath, fmt.Sprintf("%s.json", dashboard.UID))
+	filePath := grafana.GetDashboardPath(cfg.RepoSavePath, dashboard)
 	logger.Log.Debug().Str("filePath", filePath).Msg("Saving dashboard to file")
 
 	data, err := json.MarshalIndent(dashboard.Data, "", "  ")
@@ -181,10 +257,12 @@ func saveDashboard(dashboard grafana.Dashboard, cfg *config.Config) error {
 		return fmt.Errorf("failed to marshal dashboard data: %w", err)
 	}
 
-	if cfg.AddMissingNewlines {
-		if len(data) > 0 && data[len(data)-1] != '\n' {
-			data = append(data, '\n')
-		}
+	if cfg.AddMissingNewlines && len(data) > 0 && data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
+
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return fmt.Errorf("failed to create directories: %w", err)
 	}
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
