@@ -1,8 +1,8 @@
 {
-  "id": 1,
-  "uid": "adyon03rd3q4ge",
+  "id": 6,
+  "uid": "ae1nxrr93p5ogd",
   "slug": "",
-  "title": "New dashboard",
+  "title": "Some dashboard",
   "originalTitle": "",
   "tags": [],
   "style": "",
@@ -20,8 +20,8 @@
       "editable": false,
       "error": false,
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 19,
+        "w": 20,
         "x": 0,
         "y": 0
       },
