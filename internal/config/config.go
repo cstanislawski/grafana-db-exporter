@@ -8,9 +8,39 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"grafana-db-exporter/internal/logger"
 )
+
+type RunMode string
+type BranchStrategy string
+
+const (
+	OneTime  RunMode = "one-time"
+	Periodic RunMode = "periodic"
+
+	NewBranch   BranchStrategy = "new-branch"
+	ReuseBranch BranchStrategy = "reuse-branch"
+)
+
+func (m RunMode) IsValid() bool {
+	switch m {
+	case OneTime, Periodic:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s BranchStrategy) IsValid() bool {
+	switch s {
+	case NewBranch, ReuseBranch:
+		return true
+	default:
+		return false
+	}
+}
 
 type Config struct {
 	SSHURL         string `env:"SSH_URL,required"`
@@ -37,6 +67,11 @@ type Config struct {
 	AddMissingNewlines    bool `env:"ADD_MISSING_NEWLINES,default=true"`
 	DryRun                bool `env:"DRY_RUN,default=false"`
 	IgnoreFolderStructure bool `env:"IGNORE_FOLDER_STRUCTURE,default=false"`
+
+	RunMode        RunMode        `env:"RUN_MODE,default=one-time"`
+	SyncInterval   time.Duration  `env:"SYNC_INTERVAL,default=5m"`
+	BranchStrategy BranchStrategy `env:"BRANCH_STRATEGY,default=new-branch"`
+	BranchTTL      time.Duration  `env:"BRANCH_TTL,default=24h"`
 }
 
 func Load() (*Config, error) {
@@ -54,13 +89,38 @@ func Load() (*Config, error) {
 	}
 	logger.Log.Debug().Msg("Configuration validation completed successfully")
 
-	logger.Log.Debug().Bool("DryRun", cfg.DryRun).Msg("Dry run mode")
+	logger.Log.Debug().
+		Bool("DryRun", cfg.DryRun).
+		Str("RunMode", string(cfg.RunMode)).
+		Str("BranchStrategy", string(cfg.BranchStrategy)).
+		Msg("Configuration loaded")
 
-	logger.Log.Debug().Msg("Configuration loading process completed")
 	return cfg, nil
 }
 
 func (c *Config) Validate() error {
+	logger.Log.Debug().Msg("Validating configuration")
+
+	if !c.RunMode.IsValid() {
+		return fmt.Errorf("invalid run mode: %s", c.RunMode)
+	}
+
+	if !c.BranchStrategy.IsValid() {
+		return fmt.Errorf("invalid branch strategy: %s", c.BranchStrategy)
+	}
+
+	if c.RunMode == Periodic {
+		if c.SyncInterval < time.Second {
+			return fmt.Errorf("sync interval must be at least 1 second, got %v", c.SyncInterval)
+		}
+	}
+
+	if c.BranchStrategy == ReuseBranch {
+		if c.BranchTTL < time.Minute {
+			return fmt.Errorf("branch TTL must be at least 1 minute, got %v", c.BranchTTL)
+		}
+	}
+
 	logger.Log.Debug().Msg("Validating Grafana URL")
 	if _, err := url.ParseRequestURI(c.GrafanaURL); err != nil {
 		return fmt.Errorf("invalid Grafana URL: %w", err)
@@ -118,7 +178,7 @@ func parseEnv(cfg *Config) error {
 			}
 			if defaultValue != "" {
 				envValue = defaultValue
-				logger.Log.Warn().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Unset env var, using default value")
+				logger.Log.Debug().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Using default value")
 			}
 		}
 
@@ -132,23 +192,43 @@ func parseEnv(cfg *Config) error {
 }
 
 func setField(value reflect.Value, envValue string) error {
-	switch value.Kind() {
-	case reflect.String:
+	switch value.Type() {
+	case reflect.TypeOf(""):
 		value.SetString(envValue)
-	case reflect.Bool:
+		return nil
+
+	case reflect.TypeOf(true):
 		boolValue, err := strconv.ParseBool(envValue)
 		if err != nil {
 			return fmt.Errorf("invalid boolean value: %s", envValue)
 		}
 		value.SetBool(boolValue)
-	case reflect.Uint:
+		return nil
+
+	case reflect.TypeOf(uint(0)):
 		uintValue, err := strconv.ParseUint(envValue, 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid unsigned integer value: %s", envValue)
 		}
 		value.SetUint(uintValue)
-	default:
-		return fmt.Errorf("unsupported field type: %s", value.Type())
+		return nil
+
+	case reflect.TypeOf(RunMode("")):
+		value.SetString(string(RunMode(envValue)))
+		return nil
+
+	case reflect.TypeOf(BranchStrategy("")):
+		value.SetString(string(BranchStrategy(envValue)))
+		return nil
+
+	case reflect.TypeOf(time.Duration(0)):
+		duration, err := time.ParseDuration(envValue)
+		if err != nil {
+			return fmt.Errorf("invalid duration value: %s", envValue)
+		}
+		value.SetInt(int64(duration))
+		return nil
 	}
-	return nil
+
+	return fmt.Errorf("unsupported field type: %s", value.Type())
 }
