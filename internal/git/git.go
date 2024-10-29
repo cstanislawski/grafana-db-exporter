@@ -222,3 +222,36 @@ func (gc *Client) Push(ctx context.Context, branchName string) error {
 
 	return nil
 }
+
+func (gc *Client) BranchExists(ctx context.Context, branchName string) (bool, error) {
+	branches, err := gc.repo.Branches()
+	if err != nil {
+		return false, fmt.Errorf("failed to list branches: %w", err)
+	}
+
+	exists := false
+	err = branches.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Name().Short() == branchName {
+			exists = true
+		}
+		return nil
+	})
+
+	return exists, err
+}
+
+func (gc *Client) CheckoutBranch(ctx context.Context, branchName string) error {
+	w, err := gc.repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	err = w.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branchName),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to checkout branch: %w", err)
+	}
+
+	return nil
+}
