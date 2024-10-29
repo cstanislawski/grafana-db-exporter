@@ -279,12 +279,6 @@ func setupGitClient(cfg *config.Config) (*git.Client, error) {
 	return git.New(cfg.RepoClonePath, cfg.SSHURL, cfg.SSHKey, cfg.SshKeyPassword, cfg.SshKnownHostsPath, cfg.SshAcceptUnknownHosts)
 }
 
-func createNewBranch(ctx context.Context, gitClient *git.Client, cfg *config.Config) (string, error) {
-	logger.Log.Debug().Str("baseBranch", cfg.BaseBranch).Str("branchPrefix", cfg.BranchPrefix).Msg("Creating new branch")
-	branchName := fmt.Sprintf("%s%s", cfg.BranchPrefix, time.Now().Format("20060102150405"))
-	return gitClient.CheckoutNewBranch(ctx, cfg.BaseBranch, branchName)
-}
-
 func fetchDashboards(ctx context.Context, grafanaClient *grafana.Client) ([]grafana.Dashboard, error) {
 	logger.Log.Debug().Msg("Fetching dashboards from Grafana")
 	return grafanaClient.ListAndExportDashboards(ctx)
