@@ -149,18 +149,39 @@ func executeSync(ctx context.Context, cfg *config.Config, bm *branchManager) err
 	}
 	logger.Log.Debug().Int("count", savedCount).Msg("Saved dashboards")
 
-	if savedCount > 0 {
-		_, err = utils.Retry(ctx, cfg, "commit and push changes", func() (interface{}, error) {
-			return nil, commitAndPushChanges(ctx, gitClient, cfg, branchName)
+	hasChanges, err := gitClient.HasChanges()
+	if err != nil {
+		return fmt.Errorf("failed to check for changes: %w", err)
+	}
+
+	if hasChanges {
+		committed := false
+		_, err = utils.Retry(ctx, cfg, "commit changes", func() (interface{}, error) {
+			var err error
+			committed, err = gitClient.CommitAll(ctx, cfg.SSHUser, cfg.SSHEmail)
+			return nil, err
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to commit changes: %w", err)
 		}
-		logger.Log.Info().
-			Int("count", savedCount).
-			Str("branch", branchName).
-			Msg("Committed and pushed dashboard changes")
-		bm.changeCount += savedCount
+
+		if committed {
+			if !cfg.DryRun {
+				_, err = utils.Retry(ctx, cfg, "push changes", func() (interface{}, error) {
+					return nil, gitClient.Push(ctx, branchName)
+				})
+				if err != nil {
+					return fmt.Errorf("failed to push changes: %w", err)
+				}
+				logger.Log.Info().
+					Int("count", savedCount).
+					Str("branch", branchName).
+					Msg("Committed and pushed dashboard changes")
+			} else {
+				logger.Log.Info().Msg("Dry run mode: Changes committed but not pushed")
+			}
+			bm.changeCount += savedCount
+		}
 	} else {
 		logger.Log.Info().Msg("No changes to commit")
 	}
@@ -336,24 +357,6 @@ func saveDashboard(dashboard grafana.Dashboard, filePath string, cfg *config.Con
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write dashboard file: %w", err)
-	}
-
-	return nil
-}
-
-func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
-	logger.Log.Debug().Str("branch", branchName).Msg("Committing changes")
-	if err := gitClient.CommitAll(ctx, cfg.SSHUser, cfg.SSHEmail); err != nil {
-		return fmt.Errorf("failed to commit changes: %w", err)
-	}
-
-	if !cfg.DryRun {
-		logger.Log.Debug().Str("branch", branchName).Msg("Pushing changes")
-		if err := gitClient.Push(ctx, branchName); err != nil {
-			return fmt.Errorf("failed to push changes: %w", err)
-		}
-	} else {
-		logger.Log.Info().Msg("Dry run mode: Changes committed but not pushed")
 	}
 
 	return nil

@@ -184,15 +184,39 @@ func (gc *Client) CheckoutNewBranch(ctx context.Context, baseBranch, branchPrefi
 	return newBranch, nil
 }
 
-func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) error {
+func (gc *Client) HasChanges() (bool, error) {
 	w, err := gc.repo.Worktree()
 	if err != nil {
-		return fmt.Errorf("failed to get worktree: %w", err)
+		return false, fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	status, err := w.Status()
+	if err != nil {
+		return false, fmt.Errorf("failed to get status: %w", err)
+	}
+
+	return !status.IsClean(), nil
+}
+
+func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) (bool, error) {
+	hasChanges, err := gc.HasChanges()
+	if err != nil {
+		return false, fmt.Errorf("failed to check for changes: %w", err)
+	}
+
+	if !hasChanges {
+		logger.Log.Debug().Msg("No changes to commit")
+		return false, nil
+	}
+
+	w, err := gc.repo.Worktree()
+	if err != nil {
+		return false, fmt.Errorf("failed to get worktree: %w", err)
 	}
 
 	_, err = w.Add(".")
 	if err != nil {
-		return fmt.Errorf("failed to add files: %w", err)
+		return false, fmt.Errorf("failed to add files: %w", err)
 	}
 
 	_, err = w.Commit("Update Grafana dashboards", &git.CommitOptions{
@@ -204,10 +228,10 @@ func (gc *Client) CommitAll(ctx context.Context, sshUsername, sshEmail string) e
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to commit changes: %w", err)
+		return false, fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	return nil
+	return true, nil
 }
 
 func (gc *Client) Push(ctx context.Context, branchName string) error {
@@ -216,7 +240,12 @@ func (gc *Client) Push(ctx context.Context, branchName string) error {
 		RefSpecs:   []config.RefSpec{config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", branchName, branchName))},
 		Auth:       gc.auth,
 	})
+
 	if err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			logger.Log.Debug().Msg("Remote already up-to-date")
+			return nil
+		}
 		return fmt.Errorf("failed to push changes: %w", err)
 	}
 
