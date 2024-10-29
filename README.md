@@ -57,7 +57,16 @@ All configuration is done via environment variables. Here's a complete reference
 | `NUM_OF_RETRIES` | | `3` | Maximum retry attempts |
 | `RETRY_INTERVAL` | | `5` | Seconds between retries |
 
-Example `.env` file:
+### Operation Mode Configuration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `RUN_MODE` | | `one-time` | Operation mode (`one-time`, `periodic`) |
+| `SYNC_INTERVAL` | | `5m` | Interval between syncs in periodic mode (e.g., `60s`, `5m`, `24h`) |
+| `BRANCH_STRATEGY` | | `new-branch` | Branch creation strategy (`new-branch`, `reuse-branch`) |
+| `BRANCH_TTL` | | `24h` | How long to reuse a branch before creating new one (only for `reuse-branch` strategy) |
+
+Example `.env` file with periodic sync:
 
 ```env
 # Git Configuration
@@ -78,7 +87,35 @@ DELETE_MISSING=true
 # Runtime Configuration
 LOG_LEVEL=info
 ENABLE_RETRIES=true
+
+# Operation Mode Configuration
+RUN_MODE=periodic
+SYNC_INTERVAL=1h
+BRANCH_STRATEGY=reuse-branch
+BRANCH_TTL=24h
 ```
+
+### Operation Modes
+
+The application supports two operation modes:
+
+1. **One-time Mode** (default)
+   - Runs once and exits
+   - Creates a new branch for each run
+   - Ideal for CI/CD pipelines and scheduled jobs
+   - Original behavior of the tool
+
+2. **Periodic Mode**
+   - Continuously monitors and syncs dashboards
+   - Can reuse branches to reduce branch proliferation
+   - Suitable for long-running deployments
+   - Configurable sync intervals and branch rotation
+
+When using `periodic` mode with `reuse-branch` strategy:
+
+- Changes are accumulated in the same branch until `BRANCH_TTL` expires
+- After `BRANCH_TTL` expires, a new branch is created for subsequent changes
+- This helps reduce the number of branches and PRs while maintaining reasonable chunk sizes for reviews
 
 ### Examples
 
