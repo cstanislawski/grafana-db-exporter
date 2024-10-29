@@ -102,13 +102,13 @@ The application supports two operation modes:
 1. **One-time Mode** (default)
    - Runs once and exits
    - Creates a new branch for each run
-   - Ideal for CI/CD pipelines and scheduled jobs
+   - Ideal for CI/CD pipelines and Kubernetes CronJobs jobs
    - Original behavior of the tool
 
 2. **Periodic Mode**
    - Continuously monitors and syncs dashboards
    - Can reuse branches to reduce branch proliferation
-   - Suitable for long-running deployments
+   - Primarily designed for Docker environments where running as a daemon is preferred, i.e. scenarios where CronJobs are not available/are harder to manage
    - Configurable sync intervals and branch rotation
 
 When using `periodic` mode with `reuse-branch` strategy:
