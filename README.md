@@ -40,31 +40,31 @@ All configuration is done via environment variables. Here's a complete reference
 
 ### Export Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `REPO_SAVE_PATH` | ✓ | `""` | Directory path in repository to save dashboards |
-| `IGNORE_FOLDER_STRUCTURE` | | `false` | Flatten Grafana folder hierarchy in export |
-| `DELETE_MISSING` | | `true` | Remove dashboards that no longer exist in Grafana |
-| `ADD_MISSING_NEWLINES` | | `true` | Ensure JSON files end with newline |
-| `DRY_RUN` | | `false` | Commit changes but don't push |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REPO_SAVE_PATH` | `"grafana-dashboards"` | Directory path in repository to save dashboards |
+| `IGNORE_FOLDER_STRUCTURE` | `false` | Flatten Grafana folder hierarchy in export |
+| `DELETE_MISSING` | `true` | Remove dashboards that no longer exist in Grafana |
+| `ADD_MISSING_NEWLINES` | `true` | Ensure JSON files end with newline |
+| `DRY_RUN` | | `false` Commit changes but don't push |
 
 ### Runtime Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `LOG_LEVEL` | | `info` | Log level (`debug`, `info`, `warn`, `error`) |
-| `ENABLE_RETRIES` | | `true` | Retry failed operations |
-| `NUM_OF_RETRIES` | | `3` | Maximum retry attempts |
-| `RETRY_INTERVAL` | | `5` | Seconds between retries |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
+| `ENABLE_RETRIES` | `true` | Retry failed operations |
+| `NUM_OF_RETRIES` | `3` | Maximum retry attempts |
+| `RETRY_INTERVAL` | `5` | Seconds between retries |
 
 ### Operation Mode Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `RUN_MODE` | | `one-time` | Operation mode (`one-time`, `periodic`) |
-| `SYNC_INTERVAL` | | `5m` | Interval between syncs in periodic mode (e.g., `60s`, `5m`, `24h`) |
-| `BRANCH_STRATEGY` | | `new-branch` | Branch creation strategy (`new-branch`, `reuse-branch`) |
-| `BRANCH_TTL` | | `24h` | How long to reuse a branch before creating new one (only for `reuse-branch` strategy) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RUN_MODE` | `one-time` | Operation mode (`one-time`, `periodic`) |
+| `SYNC_INTERVAL` | `5m` | Interval between syncs in periodic mode (e.g., `60s`, `5m`, `24h`) |
+| `BRANCH_STRATEGY` | `new-branch` | Branch creation strategy (`new-branch`, `reuse-branch`) |
+| `BRANCH_TTL` | `24h` | How long to reuse a branch before creating new one (only for `reuse-branch` strategy) |
 
 Example `.env` file with periodic sync:
 
