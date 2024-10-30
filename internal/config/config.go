@@ -22,15 +22,6 @@ const (
 
 	NewBranch   BranchStrategy = "new-branch"
 	ReuseBranch BranchStrategy = "reuse-branch"
-
-	defaultRepoSavePath  = "grafana-dashboards"
-	defaultLogLevel      = "info"
-	defaultRetries       = 3
-	defaultRetryInterval = 5
-	defaultSyncInterval  = 5 * time.Minute
-	defaultBranchTTL     = 24 * time.Hour
-	defaultBranchPrefix  = "grafana-db-exporter-"
-	defaultBaseBranch    = "main"
 )
 
 func (m RunMode) IsValid() bool {
