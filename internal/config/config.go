@@ -22,6 +22,15 @@ const (
 
 	NewBranch   BranchStrategy = "new-branch"
 	ReuseBranch BranchStrategy = "reuse-branch"
+
+	defaultRepoSavePath  = "grafana-dashboards"
+	defaultLogLevel      = "info"
+	defaultRetries       = 3
+	defaultRetryInterval = 5
+	defaultSyncInterval  = 5 * time.Minute
+	defaultBranchTTL     = 24 * time.Hour
+	defaultBranchPrefix  = "grafana-db-exporter-"
+	defaultBaseBranch    = "main"
 )
 
 func (m RunMode) IsValid() bool {
@@ -47,52 +56,50 @@ type Config struct {
 	SSHKey         string `env:"SSH_KEY,required"`
 	SSHUser        string `env:"SSH_USER,required"`
 	SSHEmail       string `env:"SSH_EMAIL,required"`
-	RepoSavePath   string `env:"REPO_SAVE_PATH,required"`
 	GrafanaURL     string `env:"GRAFANA_URL,required"`
 	GrafanaSaToken string `env:"GRAFANA_SA_TOKEN,required"`
 
-	BaseBranch            string `env:"BASE_BRANCH,default=main"`
-	BranchPrefix          string `env:"BRANCH_PREFIX,default=grafana-db-exporter-"`
+	RepoSavePath   string         `env:"REPO_SAVE_PATH,default=grafana-dashboards"`
+	BaseBranch     string         `env:"BASE_BRANCH,default=main"`
+	BranchPrefix   string         `env:"BRANCH_PREFIX,default=grafana-db-exporter-"`
+	RepoClonePath  string         `env:"REPO_CLONE_PATH,default=./repo/"`
+	RunMode        RunMode        `env:"RUN_MODE,default=one-time"`
+	BranchStrategy BranchStrategy `env:"BRANCH_STRATEGY,default=new-branch"`
+	SyncInterval   time.Duration  `env:"SYNC_INTERVAL,default=5m"`
+	BranchTTL      time.Duration  `env:"BRANCH_TTL,default=24h"`
+
 	SshKeyPassword        string `env:"SSH_KEY_PASSWORD"`
-	SshAcceptUnknownHosts bool   `env:"SSH_ACCEPT_UNKNOWN_HOSTS,default=false"`
 	SshKnownHostsPath     string `env:"SSH_KNOWN_HOSTS_PATH"`
+	SshAcceptUnknownHosts bool   `env:"SSH_ACCEPT_UNKNOWN_HOSTS,default=false"`
 
-	RepoClonePath string `env:"REPO_CLONE_PATH,default=./repo/"`
-	DeleteMissing bool   `env:"DELETE_MISSING,default=true"`
-
-	EnableRetries  bool `env:"ENABLE_RETRIES,default=true"`
-	NumOfRetries   uint `env:"NUM_OF_RETRIES,default=3"`
-	RetriesBackoff uint `env:"RETRIES_BACKOFF,default=5"`
-
+	DeleteMissing         bool `env:"DELETE_MISSING,default=true"`
+	EnableRetries         bool `env:"ENABLE_RETRIES,default=true"`
+	NumOfRetries          uint `env:"NUM_OF_RETRIES,default=3"`
+	RetriesBackoff        uint `env:"RETRIES_BACKOFF,default=5"`
 	AddMissingNewlines    bool `env:"ADD_MISSING_NEWLINES,default=true"`
 	DryRun                bool `env:"DRY_RUN,default=false"`
 	IgnoreFolderStructure bool `env:"IGNORE_FOLDER_STRUCTURE,default=false"`
-
-	RunMode        RunMode        `env:"RUN_MODE,default=one-time"`
-	SyncInterval   time.Duration  `env:"SYNC_INTERVAL,default=5m"`
-	BranchStrategy BranchStrategy `env:"BRANCH_STRATEGY,default=new-branch"`
-	BranchTTL      time.Duration  `env:"BRANCH_TTL,default=24h"`
 }
 
 func Load() (*Config, error) {
-	logger.Log.Debug().Msg("Starting configuration loading process")
+	logger.Log.Debug().Msg("Loading configuration")
 	cfg := &Config{}
 	if err := parseEnv(cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
+		return nil, fmt.Errorf("environment parsing failed: %w", err)
 	}
 
 	cfg.RepoSavePath = filepath.Join(cfg.RepoClonePath, cfg.RepoSavePath)
-	logger.Log.Debug().Str("FullRepoSavePath", cfg.RepoSavePath).Msg("Full RepoSavePath")
+	logger.Log.Debug().Str("FullRepoSavePath", cfg.RepoSavePath).Msg("Resolved save path")
 
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
-	logger.Log.Debug().Msg("Configuration validation completed successfully")
 
 	logger.Log.Debug().
 		Bool("DryRun", cfg.DryRun).
 		Str("RunMode", string(cfg.RunMode)).
 		Str("BranchStrategy", string(cfg.BranchStrategy)).
+		Str("RepoSavePath", cfg.RepoSavePath).
 		Msg("Configuration loaded")
 
 	return cfg, nil
@@ -109,16 +116,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid branch strategy: %s", c.BranchStrategy)
 	}
 
-	if c.RunMode == Periodic {
-		if c.SyncInterval < time.Second {
-			return fmt.Errorf("sync interval must be at least 1 second, got %v", c.SyncInterval)
-		}
+	if c.RunMode == Periodic && c.SyncInterval < time.Second {
+		return fmt.Errorf("sync interval must be at least 1 second, got %v", c.SyncInterval)
 	}
 
-	if c.BranchStrategy == ReuseBranch {
-		if c.BranchTTL < time.Minute {
-			return fmt.Errorf("branch TTL must be at least 1 minute, got %v", c.BranchTTL)
-		}
+	if c.BranchStrategy == ReuseBranch && c.BranchTTL < time.Minute {
+		return fmt.Errorf("branch TTL must be at least 1 minute, got %v", c.BranchTTL)
 	}
 
 	logger.Log.Debug().Msg("Validating Grafana URL")
@@ -128,7 +131,7 @@ func (c *Config) Validate() error {
 
 	logger.Log.Debug().Str("SSHKeyPath", c.SSHKey).Msg("Checking SSH key file")
 	if _, err := os.Stat(c.SSHKey); os.IsNotExist(err) {
-		return fmt.Errorf("SSH key file does not exist: %s", c.SSHKey)
+		return fmt.Errorf("SSH key file not found: %s", c.SSHKey)
 	}
 
 	logger.Log.Debug().
@@ -137,7 +140,7 @@ func (c *Config) Validate() error {
 		Msg("Checking SSH known hosts configuration")
 	if !c.SshAcceptUnknownHosts && c.SshKnownHostsPath != "" {
 		if _, err := os.Stat(c.SshKnownHostsPath); os.IsNotExist(err) {
-			return fmt.Errorf("SSH known hosts file does not exist: %s", c.SshKnownHostsPath)
+			return fmt.Errorf("SSH known hosts file not found: %s", c.SshKnownHostsPath)
 		}
 	}
 
@@ -171,15 +174,12 @@ func parseEnv(cfg *Config) error {
 		}
 
 		envValue := os.Getenv(envName)
-
 		if envValue == "" {
 			if required {
-				return fmt.Errorf("required environment variable %s is not set", envName)
+				return fmt.Errorf("required environment variable %s not set", envName)
 			}
-			if defaultValue != "" {
-				envValue = defaultValue
-				logger.Log.Debug().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Using default value")
-			}
+			envValue = defaultValue
+			logger.Log.Debug().Str("EnvVar", envName).Str("DefaultValue", defaultValue).Msg("Using default value")
 		}
 
 		if err := setField(value, envValue); err != nil {
@@ -195,40 +195,30 @@ func setField(value reflect.Value, envValue string) error {
 	switch value.Type() {
 	case reflect.TypeOf(""):
 		value.SetString(envValue)
-		return nil
-
 	case reflect.TypeOf(true):
-		boolValue, err := strconv.ParseBool(envValue)
+		b, err := strconv.ParseBool(envValue)
 		if err != nil {
 			return fmt.Errorf("invalid boolean value: %s", envValue)
 		}
-		value.SetBool(boolValue)
-		return nil
-
+		value.SetBool(b)
 	case reflect.TypeOf(uint(0)):
-		uintValue, err := strconv.ParseUint(envValue, 10, 64)
+		u, err := strconv.ParseUint(envValue, 10, 64)
 		if err != nil {
 			return fmt.Errorf("invalid unsigned integer value: %s", envValue)
 		}
-		value.SetUint(uintValue)
-		return nil
-
+		value.SetUint(u)
 	case reflect.TypeOf(RunMode("")):
 		value.SetString(string(RunMode(envValue)))
-		return nil
-
 	case reflect.TypeOf(BranchStrategy("")):
 		value.SetString(string(BranchStrategy(envValue)))
-		return nil
-
 	case reflect.TypeOf(time.Duration(0)):
-		duration, err := time.ParseDuration(envValue)
+		d, err := time.ParseDuration(envValue)
 		if err != nil {
 			return fmt.Errorf("invalid duration value: %s", envValue)
 		}
-		value.SetInt(int64(duration))
-		return nil
+		value.SetInt(int64(d))
+	default:
+		return fmt.Errorf("unsupported field type: %s", value.Type())
 	}
-
-	return fmt.Errorf("unsupported field type: %s", value.Type())
+	return nil
 }
