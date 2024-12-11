@@ -40,24 +40,33 @@ All configuration is done via environment variables. Here's a complete reference
 
 ### Export Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `REPO_SAVE_PATH` | ✓ | `""` | Directory path in repository to save dashboards |
-| `IGNORE_FOLDER_STRUCTURE` | | `false` | Flatten Grafana folder hierarchy in export |
-| `DELETE_MISSING` | | `true` | Remove dashboards that no longer exist in Grafana |
-| `ADD_MISSING_NEWLINES` | | `true` | Ensure JSON files end with newline |
-| `DRY_RUN` | | `false` | Commit changes but don't push |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REPO_SAVE_PATH` | `"grafana-dashboards"` | Directory path in repository to save dashboards |
+| `IGNORE_FOLDER_STRUCTURE` | `false` | Flatten Grafana folder hierarchy in export |
+| `DELETE_MISSING` | `true` | Remove dashboards that no longer exist in Grafana |
+| `ADD_MISSING_NEWLINES` | `true` | Ensure JSON files end with newline |
+| `DRY_RUN` | | `false` Commit changes but don't push |
 
 ### Runtime Configuration
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `LOG_LEVEL` | | `info` | Log level (`debug`, `info`, `warn`, `error`) |
-| `ENABLE_RETRIES` | | `true` | Retry failed operations |
-| `NUM_OF_RETRIES` | | `3` | Maximum retry attempts |
-| `RETRY_INTERVAL` | | `5` | Seconds between retries |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
+| `ENABLE_RETRIES` | `true` | Retry failed operations |
+| `NUM_OF_RETRIES` | `3` | Maximum retry attempts |
+| `RETRY_INTERVAL` | `5` | Seconds between retries |
 
-Example `.env` file:
+### Operation Mode Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RUN_MODE` | `one-time` | Operation mode (`one-time`, `periodic`) |
+| `SYNC_INTERVAL` | `5m` | Interval between syncs in periodic mode (e.g., `60s`, `5m`, `24h`) |
+| `BRANCH_STRATEGY` | `new-branch` | Branch creation strategy (`new-branch`, `reuse-branch`) |
+| `BRANCH_TTL` | `24h` | How long to reuse a branch before creating new one (only for `reuse-branch` strategy) |
+
+Example `.env` file with periodic sync:
 
 ```env
 # Git Configuration
@@ -78,7 +87,35 @@ DELETE_MISSING=true
 # Runtime Configuration
 LOG_LEVEL=info
 ENABLE_RETRIES=true
+
+# Operation Mode Configuration
+RUN_MODE=periodic
+SYNC_INTERVAL=1h
+BRANCH_STRATEGY=reuse-branch
+BRANCH_TTL=24h
 ```
+
+### Operation Modes
+
+The application supports two operation modes:
+
+1. **One-time Mode** (default)
+   - Runs once and exits
+   - Creates a new branch for each run
+   - Ideal for CI/CD pipelines and Kubernetes CronJobs jobs
+   - Original behavior of the tool
+
+2. **Periodic Mode**
+   - Continuously monitors and syncs dashboards
+   - Can reuse branches to reduce branch proliferation
+   - Primarily designed for Docker environments where running as a daemon is preferred, i.e. scenarios where CronJobs are not available/are harder to manage
+   - Configurable sync intervals and branch rotation
+
+When using `periodic` mode with `reuse-branch` strategy:
+
+- Changes are accumulated in the same branch until `BRANCH_TTL` expires
+- After `BRANCH_TTL` expires, a new branch is created for subsequent changes
+- This helps reduce the number of branches and PRs while maintaining reasonable chunk sizes for reviews
 
 ### Examples
 
