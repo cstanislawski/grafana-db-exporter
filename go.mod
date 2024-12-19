@@ -6,7 +6,7 @@ require (
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/grafana-tools/sdk v0.0.0-20220919052116-6562121319fc
 	github.com/rs/zerolog v1.33.0
-	golang.org/x/crypto v0.30.0
+	golang.org/x/crypto v0.31.0
 )
 
 require (
