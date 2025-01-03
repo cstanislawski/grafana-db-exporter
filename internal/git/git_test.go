@@ -273,9 +273,13 @@ func TestClient_CommitAll(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	err = client.CommitAll(context.Background(), "testuser", "test@example.com")
+	committed, err := client.CommitAll(context.Background(), "testuser", "test@example.com")
 	if err != nil {
 		t.Fatalf("CommitAll() error = %v", err)
+	}
+
+	if !committed {
+		t.Error("Expected changes to be committed")
 	}
 
 	head, err := repo.Head()

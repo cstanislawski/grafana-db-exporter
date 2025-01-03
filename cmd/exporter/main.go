@@ -32,19 +32,79 @@ func main() {
 
 	setupSignalHandler(cancel)
 
-	if err := run(ctx); err != nil {
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
+
+	if err := run(ctx, cfg); err != nil {
 		logger.Log.Fatal().Err(err).Msg("Application failed")
 	}
 
 	logger.Log.Info().Msg("Grafana DB exporter completed successfully")
 }
 
-func run(ctx context.Context) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+func run(ctx context.Context, cfg *config.Config) error {
+	switch cfg.RunMode {
+	case config.OneTime:
+		return runOnce(ctx, cfg)
+	case config.Periodic:
+		return runPeriodic(ctx, cfg)
+	default:
+		return fmt.Errorf("unknown run mode: %s", cfg.RunMode)
+	}
+}
+func runPeriodic(ctx context.Context, cfg *config.Config) error {
+	ticker := time.NewTicker(cfg.SyncInterval)
+	defer ticker.Stop()
+
+	branchManager := newBranchManager(cfg)
+
+	if err := executeSync(ctx, cfg, branchManager); err != nil {
+		logger.Log.Error().Err(err).Msg("Initial sync failed")
 	}
 
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if err := executeSync(ctx, cfg, branchManager); err != nil {
+				logger.Log.Error().Err(err).Msg("Periodic sync failed")
+			}
+		}
+	}
+}
+
+func runOnce(ctx context.Context, cfg *config.Config) error {
+	return executeSync(ctx, cfg, newBranchManager(cfg))
+}
+
+type branchManager struct {
+	cfg           *config.Config
+	currentBranch string
+	createdAt     time.Time
+	changeCount   int
+}
+
+func newBranchManager(cfg *config.Config) *branchManager {
+	return &branchManager{
+		cfg: cfg,
+	}
+}
+
+func (bm *branchManager) getBranchName() string {
+	if bm.cfg.BranchStrategy == config.NewBranch ||
+		bm.currentBranch == "" ||
+		(bm.cfg.BranchStrategy == config.ReuseBranch && time.Since(bm.createdAt) > bm.cfg.BranchTTL) {
+		bm.currentBranch = fmt.Sprintf("%s%s", bm.cfg.BranchPrefix, time.Now().Format("20060102150405"))
+		bm.createdAt = time.Now()
+		bm.changeCount = 0
+	}
+	return bm.currentBranch
+}
+
+func executeSync(ctx context.Context, cfg *config.Config, bm *branchManager) error {
 	gitClient, err := setupGitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to setup Git client: %w", err)
@@ -55,9 +115,16 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("failed to create Grafana client: %w", err)
 	}
 
-	branchName, err := createNewBranch(ctx, gitClient, cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create new branch: %w", err)
+	branchName := bm.getBranchName()
+	if branchName != bm.currentBranch {
+		logger.Log.Info().
+			Str("oldBranch", bm.currentBranch).
+			Str("newBranch", branchName).
+			Msg("Creating new branch")
+	}
+
+	if err := checkoutBranch(ctx, gitClient, cfg, branchName); err != nil {
+		return fmt.Errorf("failed to checkout branch: %w", err)
 	}
 
 	dashboards, err := utils.Retry(ctx, cfg, "fetch dashboards", func() ([]grafana.Dashboard, error) {
@@ -82,16 +149,60 @@ func run(ctx context.Context) error {
 	}
 	logger.Log.Debug().Int("count", savedCount).Msg("Saved dashboards")
 
-	if savedCount > 0 {
-		_, err = utils.Retry(ctx, cfg, "commit and push changes", func() (interface{}, error) {
-			return nil, commitAndPushChanges(ctx, gitClient, cfg, branchName)
+	hasChanges, err := gitClient.HasChanges()
+	if err != nil {
+		return fmt.Errorf("failed to check for changes: %w", err)
+	}
+
+	if hasChanges {
+		committed := false
+		_, err = utils.Retry(ctx, cfg, "commit changes", func() (interface{}, error) {
+			var err error
+			committed, err = gitClient.CommitAll(ctx, cfg.SSHUser, cfg.SSHEmail)
+			return nil, err
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to commit changes: %w", err)
 		}
-		logger.Log.Info().Int("count", savedCount).Str("branch", branchName).Msg("Committed and pushed dashboard changes")
+
+		if committed {
+			if !cfg.DryRun {
+				_, err = utils.Retry(ctx, cfg, "push changes", func() (interface{}, error) {
+					return nil, gitClient.Push(ctx, branchName)
+				})
+				if err != nil {
+					return fmt.Errorf("failed to push changes: %w", err)
+				}
+				logger.Log.Info().
+					Int("count", savedCount).
+					Str("branch", branchName).
+					Msg("Committed and pushed dashboard changes")
+			} else {
+				logger.Log.Info().Msg("Dry run mode: Changes committed but not pushed")
+			}
+			bm.changeCount += savedCount
+		}
 	} else {
 		logger.Log.Info().Msg("No changes to commit")
+	}
+
+	return nil
+}
+
+func checkoutBranch(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
+	exists, err := gitClient.BranchExists(ctx, branchName)
+	if err != nil {
+		return fmt.Errorf("failed to check branch existence: %w", err)
+	}
+
+	if exists {
+		err = gitClient.CheckoutBranch(ctx, branchName)
+	} else {
+		_, err = gitClient.CheckoutNewBranch(ctx, cfg.BaseBranch, branchName)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to checkout branch: %w", err)
 	}
 
 	return nil
@@ -189,12 +300,6 @@ func setupGitClient(cfg *config.Config) (*git.Client, error) {
 	return git.New(cfg.RepoClonePath, cfg.SSHURL, cfg.SSHKey, cfg.SshKeyPassword, cfg.SshKnownHostsPath, cfg.SshAcceptUnknownHosts)
 }
 
-func createNewBranch(ctx context.Context, gitClient *git.Client, cfg *config.Config) (string, error) {
-	logger.Log.Debug().Str("baseBranch", cfg.BaseBranch).Str("branchPrefix", cfg.BranchPrefix).Msg("Creating new branch")
-	branchName := fmt.Sprintf("%s%s", cfg.BranchPrefix, time.Now().Format("20060102150405"))
-	return gitClient.CheckoutNewBranch(ctx, cfg.BaseBranch, branchName)
-}
-
 func fetchDashboards(ctx context.Context, grafanaClient *grafana.Client) ([]grafana.Dashboard, error) {
 	logger.Log.Debug().Msg("Fetching dashboards from Grafana")
 	return grafanaClient.ListAndExportDashboards(ctx)
@@ -252,24 +357,6 @@ func saveDashboard(dashboard grafana.Dashboard, filePath string, cfg *config.Con
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write dashboard file: %w", err)
-	}
-
-	return nil
-}
-
-func commitAndPushChanges(ctx context.Context, gitClient *git.Client, cfg *config.Config, branchName string) error {
-	logger.Log.Debug().Str("branch", branchName).Msg("Committing changes")
-	if err := gitClient.CommitAll(ctx, cfg.SSHUser, cfg.SSHEmail); err != nil {
-		return fmt.Errorf("failed to commit changes: %w", err)
-	}
-
-	if !cfg.DryRun {
-		logger.Log.Debug().Str("branch", branchName).Msg("Pushing changes")
-		if err := gitClient.Push(ctx, branchName); err != nil {
-			return fmt.Errorf("failed to push changes: %w", err)
-		}
-	} else {
-		logger.Log.Info().Msg("Dry run mode: Changes committed but not pushed")
 	}
 
 	return nil
