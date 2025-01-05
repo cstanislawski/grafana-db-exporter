@@ -15,6 +15,7 @@ import (
 	"grafana-db-exporter/internal/config"
 	"grafana-db-exporter/internal/git"
 	"grafana-db-exporter/internal/grafana"
+	"grafana-db-exporter/internal/jsondiff"
 	"grafana-db-exporter/internal/logger"
 	"grafana-db-exporter/internal/utils"
 )
@@ -237,6 +238,34 @@ func saveDashboards(ctx context.Context, dashboards []grafana.Dashboard, cfg *co
 func saveDashboard(dashboard grafana.Dashboard, filePath string, cfg *config.Config) error {
 	logger.Log.Debug().Str("filePath", filePath).Msg("Saving dashboard to file")
 
+	// Check if the file already exists
+	existingData, err := os.ReadFile(filePath)
+	if err == nil {
+		var existingDashboard map[string]interface{}
+		if err := json.Unmarshal(existingData, &existingDashboard); err != nil {
+			return fmt.Errorf("failed to unmarshal existing dashboard: %w", err)
+		}
+
+		// Compare dashboards with ignore patterns
+		diffOpts := jsondiff.DiffOptions{
+			IgnorePatterns: cfg.IgnorePatterns,
+		}
+		equal, err := jsondiff.Compare(existingDashboard, dashboard.Data, diffOpts)
+		if err != nil {
+			return fmt.Errorf("failed to compare dashboards: %w", err)
+		}
+
+		if equal {
+			logger.Log.Debug().
+				Str("dashboardUID", dashboard.UID).
+				Str("filePath", filePath).
+				Msg("Dashboard unchanged, skipping save")
+			return nil
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read existing dashboard file: %w", err)
+	}
+
 	data, err := json.MarshalIndent(dashboard.Data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal dashboard data: %w", err)
@@ -253,6 +282,11 @@ func saveDashboard(dashboard grafana.Dashboard, filePath string, cfg *config.Con
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write dashboard file: %w", err)
 	}
+
+	logger.Log.Debug().
+		Str("dashboardUID", dashboard.UID).
+		Str("filePath", filePath).
+		Msg("Dashboard saved successfully")
 
 	return nil
 }

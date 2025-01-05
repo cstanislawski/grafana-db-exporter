@@ -13,13 +13,14 @@ import (
 )
 
 type Config struct {
-	SSHURL         string `env:"SSH_URL,required"`
-	SSHKey         string `env:"SSH_KEY,required"`
-	SSHUser        string `env:"SSH_USER,required"`
-	SSHEmail       string `env:"SSH_EMAIL,required"`
-	RepoSavePath   string `env:"REPO_SAVE_PATH,required"`
-	GrafanaURL     string `env:"GRAFANA_URL,required"`
-	GrafanaSaToken string `env:"GRAFANA_SA_TOKEN,required"`
+	SSHURL         string   `env:"SSH_URL,required"`
+	SSHKey         string   `env:"SSH_KEY,required"`
+	SSHUser        string   `env:"SSH_USER,required"`
+	SSHEmail       string   `env:"SSH_EMAIL,required"`
+	RepoSavePath   string   `env:"REPO_SAVE_PATH,required"`
+	GrafanaURL     string   `env:"GRAFANA_URL,required"`
+	GrafanaSaToken string   `env:"GRAFANA_SA_TOKEN,required"`
+	IgnorePatterns []string `env:"IGNORE_PATTERNS"`
 
 	BaseBranch            string `env:"BASE_BRANCH,default=main"`
 	BranchPrefix          string `env:"BRANCH_PREFIX,default=grafana-db-exporter-"`
@@ -147,6 +148,20 @@ func setField(value reflect.Value, envValue string) error {
 			return fmt.Errorf("invalid unsigned integer value: %s", envValue)
 		}
 		value.SetUint(uintValue)
+	case reflect.Slice:
+		if value.Type().Elem().Kind() == reflect.String {
+			if envValue == "" {
+				value.Set(reflect.MakeSlice(value.Type(), 0, 0))
+				return nil
+			}
+			patterns := strings.Split(envValue, ",")
+			for i := range patterns {
+				patterns[i] = strings.TrimSpace(patterns[i])
+			}
+			value.Set(reflect.ValueOf(patterns))
+			return nil
+		}
+		fallthrough
 	default:
 		return fmt.Errorf("unsupported field type: %s", value.Type())
 	}
