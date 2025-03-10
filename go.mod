@@ -6,7 +6,7 @@ require (
 	github.com/go-git/go-git/v5 v5.13.2
 	github.com/grafana-tools/sdk v0.0.0-20220919052116-6562121319fc
 	github.com/rs/zerolog v1.33.0
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.36.0
 )
 
 require (
@@ -31,6 +31,6 @@ require (
 	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
