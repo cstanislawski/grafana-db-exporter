@@ -5,7 +5,7 @@ go 1.23.3
 require (
 	github.com/go-git/go-git/v5 v5.13.2
 	github.com/grafana-tools/sdk v0.0.0-20220919052116-6562121319fc
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	golang.org/x/crypto v0.33.0
 )
 
