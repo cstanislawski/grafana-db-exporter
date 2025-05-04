@@ -2,10 +2,6 @@ package git
 
 import (
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/binary"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"strings"
@@ -85,72 +81,6 @@ func New(repoClonePath, sshURL, sshKeyPath, sshKeyPassword, knownHostsPath strin
 	logger.Log.Debug().Msg("Repository cloned successfully")
 
 	return &Client{repo: repo, auth: auth}, nil
-}
-
-func marshalOpenSSHED25519PrivateKey(privateKey ed25519.PrivateKey) ([]byte, error) {
-	pubKey := privateKey.Public().(ed25519.PublicKey)
-
-	keyBytes := []byte("openssh-key-v1\x00")
-
-	// Cipher, KDF, KDF options (all empty for unencrypted key)
-	keyBytes = append(keyBytes, 0, 0, 0, 4) // 4 bytes for "none"
-	keyBytes = append(keyBytes, []byte("none")...)
-	keyBytes = append(keyBytes, 0, 0, 0, 4) // 4 bytes for "none"
-	keyBytes = append(keyBytes, []byte("none")...)
-	keyBytes = append(keyBytes, 0, 0, 0, 0) // 4 bytes for empty KDF options
-
-	keyBytes = append(keyBytes, 0, 0, 0, 1) // 4 bytes for number of keys (1)
-
-	// Public key
-	pubKeyBytes := ssh.Marshal(struct {
-		KeyType string
-		PubKey  []byte
-	}{
-		KeyType: ssh.KeyAlgoED25519,
-		PubKey:  pubKey,
-	})
-
-	keyBytes = binary.BigEndian.AppendUint32(keyBytes, uint32(len(pubKeyBytes)))
-	keyBytes = append(keyBytes, pubKeyBytes...)
-
-	// Generate random check integers
-	checkInt := make([]byte, 4)
-	_, err := rand.Read(checkInt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random check integers: %w", err)
-	}
-
-	// Private key
-	privKeyBytes := ssh.Marshal(struct {
-		CheckInt1  uint32
-		CheckInt2  uint32
-		KeyType    string
-		PubKey     []byte
-		PrivKeyPad []byte
-		Comment    string
-	}{
-		CheckInt1:  binary.BigEndian.Uint32(checkInt),
-		CheckInt2:  binary.BigEndian.Uint32(checkInt),
-		KeyType:    ssh.KeyAlgoED25519,
-		PubKey:     pubKey,
-		PrivKeyPad: privateKey,
-		Comment:    "",
-	})
-
-	padding := 8 - (len(privKeyBytes) % 8)
-	for i := 0; i < padding; i++ {
-		privKeyBytes = append(privKeyBytes, byte(i+1))
-	}
-
-	keyBytes = binary.BigEndian.AppendUint32(keyBytes, uint32(len(privKeyBytes)))
-	keyBytes = append(keyBytes, privKeyBytes...)
-
-	pemBlock := &pem.Block{
-		Type:  "OPENSSH PRIVATE KEY",
-		Bytes: keyBytes,
-	}
-
-	return pem.EncodeToMemory(pemBlock), nil
 }
 
 func parseSSHPrivateKey(privateKey []byte) (ssh.Signer, error) {
