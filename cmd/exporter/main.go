@@ -176,7 +176,11 @@ func isDirEmpty(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.Log.Error().Err(err).Msg("Failed to close file")
+		}
+	}()
 
 	_, err = f.Readdirnames(1)
 	if err == io.EOF {

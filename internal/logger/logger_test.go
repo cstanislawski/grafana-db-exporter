@@ -22,8 +22,8 @@ func TestLogger(t *testing.T) {
 		t.Fatalf("Failed to parse log entry: %v", err)
 	}
 
-	assertLogField(t, logEntry, "lvl", "info")
-	assertLogField(t, logEntry, "msg", "test message")
+	assertLogField(t, logEntry, "l", "info")
+	assertLogField(t, logEntry, "m", "test message")
 	assertTimeField(t, logEntry, "t")
 }
 
@@ -51,8 +51,8 @@ func TestLogLevels(t *testing.T) {
 				t.Fatalf("Failed to parse log entry: %v", err)
 			}
 
-			assertLogField(t, logEntry, "lvl", level.level)
-			assertLogField(t, logEntry, "msg", "test message")
+			assertLogField(t, logEntry, "l", level.level)
+			assertLogField(t, logEntry, "m", "test message")
 			assertTimeField(t, logEntry, "t")
 		})
 	}
