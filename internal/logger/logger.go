@@ -47,8 +47,8 @@ func configureLogger(output io.Writer, level zerolog.Level) {
 
 	zerolog.TimeFieldFormat = time.RFC3339
 	zerolog.TimestampFieldName = "t"
-	zerolog.LevelFieldName = "lvl"
-	zerolog.MessageFieldName = "msg"
+	zerolog.LevelFieldName = "l"
+	zerolog.MessageFieldName = "m"
 
 	zerolog.DefaultContextLogger = &Log
 }
