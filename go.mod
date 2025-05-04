@@ -1,6 +1,6 @@
 module grafana-db-exporter
 
-go 1.23.3
+go 1.24.2
 
 require (
 	github.com/go-git/go-git/v5 v5.13.2
