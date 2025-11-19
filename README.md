@@ -2,12 +2,24 @@
 
 Automatically export Grafana dashboards to Git for version control and Infrastructure as Code workflows.
 
+## Reverse-GitOps
+
+Most Infrastructure-as-Code (IaC) setups suffer from a common friction point: Grafana dashboards are visual, but Git is textual. Engineers often prefer building dashboards in the Grafana UI because of the immediate visual feedback loop, but this leads to "Configuration Drift" where the live state diverges from the code in Git.
+
+`grafana-db-exporter` enables a "Reverse-GitOps" pattern:
+
+- Engineers build and iterate on dashboards using the Grafana UI
+- The exporter automatically captures these changes and pushes them to Git
+- Your IaC tool (Terraform, ArgoCD, Crossplane) detects the new commit and reconciles the state
+
+This ensures your repository remains the Single Source of Truth without forcing engineers to write JSON manually.
+
 ## Why?
 
-- Version control your Grafana dashboards
-- Enable GitOps workflows for dashboard management
-- Bridge the gap between UI-based dashboard creation and Infrastructure as Code
-- Backup dashboards automatically
+- Eliminate drift - stop manually copying JSON from the UI to your IDE
+- Disaster recovery - recover from accidental deletions via Git history
+- Audit trails - track exactly who changed what visualization via Git history
+- Code reviews - review dashboard changes in Pull Requests using the formatted JSON output
 
 ## Usage
 
@@ -15,7 +27,7 @@ Automatically export Grafana dashboards to Git for version control and Infrastru
 
 ## Configuration
 
-All configuration is done via environment variables. Here's a complete reference grouped by functionality:
+All configuration is done via environment variables.
 
 ### Git Configuration
 
@@ -184,33 +196,33 @@ spec:
           restartPolicy: OnFailure
 ```
 
-### Integration with CI/CD
+## Integration with CI/CD
 
 To integrate `grafana-db-exporter` with your CI/CD pipeline, you can set up a periodic job that runs the exporter. This way, you can keep your Grafana dashboards in sync with your repository.
 
 In order to integrate the exported dashboards to be applied to the Grafana instance, you can set up your repository to deploy the changes in several ways:
 
-#### Terraform
+### Terraform
 
 You can use the [Grafana provider](https://registry.terraform.io/providers/grafana/grafana/latest/docs) and source all of your dashboards from the `REPO_SAVE_PATH` directory.
 
 More info: [Terraform Implementation Example](examples/terraform/README.md)
 
-#### Kubernetes
+### Kubernetes
 
-##### Basic
-
-TBD
-
-##### ArgoCD
+#### Basic
 
 TBD
 
-### Limitations
+#### ArgoCD
 
-#### Multiple Grafana organizations / instances
+TBD
 
-If you need to export dashboards from multiple Grafana organizations, you will need to run multiple instances of `grafana-db-exporter` with different `GRAFANA_SA_TOKEN` and different `GRAFANA_URL` in case of multiple instances. The token is the only way to authenticate with the Grafana API, and it is also the token that represents the organization that the service account belongs to, limiting the access to the dashboards to the ones that the organization has access to.
+## Limitations
+
+### Multiple Grafana organizations / instances
+
+If you need to export dashboards from multiple Grafana organizations, you will need to run multiple instances of `grafana-db-exporter` with different `GRAFANA_SA_TOKEN` and different `GRAFANA_URL`. The token is the only way to authenticate with the Grafana API, and it represents the specific organization the service account belongs to.
 
 More info: [Grafana docs on Service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/)
 
