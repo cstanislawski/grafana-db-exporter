@@ -3,10 +3,10 @@ module grafana-db-exporter
 go 1.24.2
 
 require (
-	github.com/go-git/go-git/v5 v5.16.0
+	github.com/go-git/go-git/v5 v5.16.3
 	github.com/grafana-tools/sdk v0.0.0-20220919052116-6562121319fc
 	github.com/rs/zerolog v1.34.0
-	golang.org/x/crypto v0.37.0
+	golang.org/x/crypto v0.44.0
 )
 
 require (
@@ -30,7 +30,7 @@ require (
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
-	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/net v0.46.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
