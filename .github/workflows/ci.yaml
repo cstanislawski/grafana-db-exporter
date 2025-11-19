@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: 1.24.2
+          go-version-file: 'go.mod'
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.1.6
@@ -34,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: 1.24.2
+          go-version-file: 'go.mod'
       - name: Run go test
         run: go test ./...
   build:
