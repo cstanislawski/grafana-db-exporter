@@ -10,7 +10,7 @@ on:
     paths-ignore:
       - "**.md"
       - "examples/**"
-      - "LICENSE.md"
+      - "LICENSE"
 
 jobs:
   lint:
