@@ -3,7 +3,7 @@ module grafana-db-exporter
 go 1.24.2
 
 require (
-	github.com/go-git/go-git/v5 v5.16.3
+	github.com/go-git/go-git/v5 v5.16.4
 	github.com/grafana-tools/sdk v0.0.0-20220919052116-6562121319fc
 	github.com/rs/zerolog v1.34.0
 	golang.org/x/crypto v0.44.0
