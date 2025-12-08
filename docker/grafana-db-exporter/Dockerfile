@@ -10,7 +10,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o exporter ./cmd/exporter
 
-FROM alpine:3.22
+FROM alpine:3.23
 
 WORKDIR /app
 
