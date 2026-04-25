@@ -1,5 +1,10 @@
 # grafana-db-exporter
 
+> [!WARNING]
+> This repository is deprecated and archived.
+> For Grafana GitOps workflows, use Grafana Git Sync instead:
+> https://grafana.com/blog/git-sync-grafana/
+
 Automatically export Grafana dashboards to Git for version control and Infrastructure as Code workflows.
 
 ## Reverse-GitOps
